@@ -1,0 +1,94 @@
+openapi: 3.0.1
+info:
+  title: NexusDhaam API
+  description: |
+    OpenAPI 3.0 specification for the NexusDhaam product. Provides endpoints under `/api/v1/orders`.
+  version: 1.0.0
+servers:
+  - url: https://{environment}-api.dhaamai.com
+    description: API server with selectable environment
+    variables:
+      environment:
+        enum:
+          - prod
+          - test
+          - staging
+        default: prod
+security:
+  - bearerAuth: []
+  - apiKeyAuth: []
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+  schemas:
+    TestRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 50
+        email:
+          type: string
+          format: email
+        age:
+          type: integer
+          minimum: 18
+          maximum: 120
+        phone:
+          type: string
+          pattern: '^\\+?[1-9]\\d{1,14}$'
+          description: Use E.164 standard
+        website:
+          type: string
+          format: uri
+        language:
+          type: string
+          enum:
+            - en
+            - es
+            - fr
+            - de
+            - it
+      required:
+        - name
+        - email
+        - age
+        - language
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        database:
+          type: string
+      required:
+        - status
+        - timestamp
+        - database
+paths:
+  /api/v1/orders/health:
+    get:
+      summary: Check API health status
+      operationId: checkHealth
+      responses:
+        '200':
+          description: Successful health check
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+        '401':
+          description: Unauthorized - missing or invalid credentials
+        '500':
+          description: Internal server error
