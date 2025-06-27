@@ -210,37 +210,21 @@ components:
     CreateOrderResponse:
       type: object
       properties:
-        status:
-          type: string
-        order_id:
-          type: integer
-        tracking_url:
-          type: string
-          format: uri
+        order:
+          $ref: '#/components/schemas/OrderResp'
         estimated_delivery:
           type: string
           format: date-time
-        order_details:
-          $ref: '#/components/schemas/OrderDetails'
-        next_steps:
-          $ref: '#/components/schemas/NextSteps'
-
-    OrderDetails:
-      type: object
-      properties:
-        status:
-          type: string
-        delivery_mode:
-          type: string
+          example: 2025-06-27T10:57:29.9006848+05:30
         order_mode:
           type: string
-        scheduled_for:
+          example: SCHEDULED
+        tracking_url:
           type: string
-          format: date-time
-          nullable: true
-        order_placed_at:
-          type: string
-          format: date-time
+          format: uri
+          example: https://example.com/track/ace1f5ac-c410-4c20-9221-4031e21d4800
+        next_steps:
+          $ref: '#/components/schemas/NextSteps'
 
     NextSteps:
       type: object
@@ -258,6 +242,7 @@ components:
       properties:
         quotation_id:
           type: string
+          format: uuid
         customer_id:
           type: integer
         address:
@@ -314,6 +299,10 @@ components:
     QuoteResponse:
       type: object
       properties:
+        order:
+          type: object
+          items:
+            $ref: '#/components/schemas/OrderResp'
         quotation_id:
           type: string
         customer_id:
@@ -382,58 +371,10 @@ components:
     OrderDetailRes:
       type: object
       properties:
-        id:
-          type: integer
-        order_id:
-          type: string
-        delivery_mode:
-          type: integer
-        delivery_mode_name:
-          type: string
-        order_status:
-          type: integer
-        orcder_status_name:
-          type: string
-        order_source:
-          type: integer
-        order_source_name:
-          type: string
-        cart_total:
-          type: number
-        delivery_charge:
-          type: number
-        total_discount:
-          type: number
-        schedule_for:
-          type: string
-          format: date-time
-        placed_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
-        delivery_address:
-          type: string
-        client_request_id:
-          type: string
-        order_information:
+        order:
           type: object
-          additionalProperties: true
-        customer_id:
-          type: integer
-        customer_name:
-          type: string
-        store_id:
-          type: integer
-        payment_mode:
-          type: integer
-        payment_mode_name:
-          type: string
-        latitude:
-          type: number
-        longitude:
-          type: number
+          items:
+            $ref: '#/components/schemas/OrderResp'
         items:
           type: array
           items:
