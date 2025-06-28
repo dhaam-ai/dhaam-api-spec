@@ -132,6 +132,8 @@ components:
           type: string
         limit:
           type: integer
+        current_page:
+          type: integer
         filters:
           $ref: '#/components/schemas/OrderFilters'
         sort:
