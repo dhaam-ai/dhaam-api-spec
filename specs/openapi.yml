@@ -134,6 +134,8 @@ components:
           type: integer
         current_page:
           type: integer
+        previous_page:
+          type: integer
         filters:
           $ref: '#/components/schemas/OrderFilters'
         sort:
