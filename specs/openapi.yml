@@ -154,6 +154,11 @@ components:
           format: date-time
         order_status:
           type: integer
+        avg_rating:
+          type: number
+          format: float
+        customer_notes:
+          type: string
         order_status_name:
           type: string
         customer_id:
@@ -348,6 +353,31 @@ components:
           type: boolean
         notes:
           type: string
+    
+    Prices:
+      type: object
+      properties:
+        grand_total:
+          type: number
+          format: float
+        item_total:
+          type: number
+          format: float
+        total_tax:
+          type: number
+          format: float
+        gst:
+          type: number
+          format: float
+        processing_fees:
+          type: number
+          format: float
+        platform_fees:
+          type: number
+          format: float
+        delivery_charges:
+          type: number
+          format: float
 
     EventsRes:
       type: object
@@ -387,6 +417,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/EventsRes'
+        prices:
+          type: object
+          items:
+            $ref: '#/components/schemas/Prices'
 
     UpdateOrderRequest:
       type: object
