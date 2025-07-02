@@ -98,6 +98,10 @@ components:
           type: array
           items:
             type: integer
+        payment_mode:
+          type: array
+          items:
+            type: integer
         order_type:
           type: array
           items:
