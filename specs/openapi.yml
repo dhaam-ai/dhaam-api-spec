@@ -534,7 +534,12 @@ paths:
           required: false
           schema:
             type: string
-          description: Optional field to filter the response content    
+          description: >
+            Optional field to filter the response content. Comma-separated values allowed.
+            - `item` – Returns only order items.
+            - `price` – Returns only pricing details.
+            - `item,price` – Returns both items and price.
+            If omitted, the full order detail is returned including items, price, events, and metadata.
       responses:
         '200': { description: Order details, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
         '404': { description: Order not found }
