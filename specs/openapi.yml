@@ -490,7 +490,7 @@ paths:
         '401': { description: Unauthorized }
         '500': { description: Internal server error }
 
-  /api/v1/orders/quote:
+  /quote:
     post:
       summary: Create or update a quote
       operationId: upsertQuote
@@ -507,7 +507,7 @@ paths:
         '401': { description: Unauthorized }
         '500': { description: Server error }
 
-  /api/v1/orders/list:
+  /list:
     post:
       summary: List orders
       operationId: listOrders
@@ -524,7 +524,7 @@ paths:
         '401': { description: Unauthorized }
         '500': { description: Server error }
 
-  /api/v1/orders/create:
+  /create:
     post:
       summary: Create a new order
       operationId: createOrder
@@ -541,7 +541,7 @@ paths:
         '401': { description: Unauthorized }
         '500': { description: Server error }
 
-  /api/v1/orders/{id}:
+  /{id}:
     get:
       summary: Get order details
       operationId: getOrderDetail
