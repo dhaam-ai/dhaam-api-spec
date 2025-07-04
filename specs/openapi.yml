@@ -143,6 +143,27 @@ components:
         sort:
           $ref: '#/components/schemas/OrderSort'
       required: [start_time, end_time, limit]
+    
+    Store:
+      type: object
+      properties:
+        id:
+          type: integer
+        store_name:
+          type: string
+        phone_number:
+          type: string
+        email:
+          type: string
+        country_code:
+          type: string
+        admin_comission:
+          type: number
+        merchant_comission:
+          type: number
+        storeRating:
+          type: number
+          format: float
 
     OrderResp:
       type: object
@@ -197,6 +218,8 @@ components:
           type: integer
         delivery_mode_name:
           type: string
+        store:
+          $ref: '#/components/schemas/Store'
 
     ListOrdersResponse:
       type: object
