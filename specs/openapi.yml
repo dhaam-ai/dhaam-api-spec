@@ -138,19 +138,26 @@ components:
         start_time:
           type: string
           format: date-time
+          description: The start date and time of the range for which orders should be fetched.
         end_time:
           type: string
           format: date-time
+          description: The end date and time of the range for which orders should be fetched.
         limit:
           type: integer
+          description: The maximum number of orders to return per page.
         current_page:
           type: integer
+          description: The current page number for pagination.
         previous_page:
           type: integer
+          description: The previous page number (used for backward pagination or state tracking).
         filters:
           $ref: '#/components/schemas/OrderFilters'
+          description: Filters to narrow down the order search results based on status, store, platform, etc.
         sort:
           $ref: '#/components/schemas/OrderSort'
+          description: Sorting rules for ordering the returned orders.
       required: [start_time, end_time, limit]
     
     Store:
@@ -248,6 +255,7 @@ components:
         quotation_id:
           type: string
           format: uuid
+          description: The unique ID of the quotation which is generated in upsert quote, based on which the order will be created. This is required to validate pricing, customer, and store details.
       required: [quotation_id]
 
     CreateOrderResponse:
@@ -286,58 +294,82 @@ components:
         quotation_id:
           type: string
           format: uuid
+          description: Unique identifier for the quotation (used for updates or validations).
         customer_id:
           type: integer
+          description: ID of the customer placing the order.
         address:
           type: string
+          description: Delivery address for the order.
         latitude:
           type: number
+          description: Latitude of the delivery location.
         longitude:
           type: number
+          description: Longitude of the delivery location.
         delivery_mode:
           type: integer
+          description: Mode of delivery.
         order_mode:
           type: integer
+          description: Type of order.
         scheduled_for:
           type: string
           format: date-time
+          description: Date and time for which the order is scheduled, if applicable.
         payment_via:
           type: integer
+          description: Type of payment modes.
         wallet_money:
           type: number
+          description: Amount to be used from wallet balance.
         loyalty_points:
           type: integer
+          description: Loyalty points the customer wants to redeem.
         store_id:
           type: integer
+          description: ID of the store from which the order is being placed.
         items:
           type: array
+          description: List of items in the order with quantity and total pricing.
           items:
             type: object
             properties:
               item_id:
                 type: integer
+                description: ID of the item being ordered.
               quantity:
                 type: integer
+                description: Number of units ordered.
               total_amount:
                 type: number
+                description: Total price for the item (quantity × price).
         flat_discount:
           type: number
+          description: Flat discount amount applied to the order.
         tips:
           type: number
+          description: Tip amount added by the customer.
         promo_code:
           type: string
+          description: Promotional code applied to the order.
         notes:
           type: string
+          description: Special instructions or notes from the customer.
         utensils:
           type: object
+          description: Optional request for carry bag or cutlery.
           properties:
             send_cutlery:
               type: boolean
+              description: Whether the customer wants cutlery to be included.
             carry_bag:
               type: boolean
+              description: Whether the customer wants a carry bag included.
         expires_at:
           type: string
           format: date-time
+          description: The expiry time for the quotation. After this time, the quotation is considered invalid.
 
     QuoteResponse:
       type: object
@@ -468,7 +500,9 @@ components:
         metadata:
           type: object
           additionalProperties: true
-          description: Optional metadata as key-value pairs
+          description: Optional metadata as key-value pairs.  
+            - If status is `9` (cancelled), then `reason` (string) must be provided in metadata.  
+            - If order is being marked ready or similar, `prep_time` (integer in minutes) may also be included.
 
     UpdateOrderResponse:
       type: object
@@ -561,6 +595,8 @@ paths:
           required: true
           schema:
             type: string
+          description: The unique order ID. This ID can be obtained from the order listing API (`id` field).
+        
         - in: query
           name: field
           required: false
@@ -588,6 +624,7 @@ paths:
           required: true
           schema:
             type: string
+          description: The unique order ID. This ID can be obtained from the order listing API or order detail api (`id` field).
       requestBody:
         required: true
         content:
