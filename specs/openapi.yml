@@ -94,34 +94,43 @@ components:
           type: array
           items:
             type: integer
+          description: If this filter is applied, only orders placed using the specified platforms will be returned.
         delivery_mode:
           type: array
           items:
             type: integer
+          description: Filters the results to include only orders that match the selected delivery modes.
         payment_mode:
           type: array
           items:
             type: integer
+          description: Returns only those orders where the payment was made using the selected modes.
         order_type:
           type: array
           items:
             type: integer
+          description: If used, this filter will return only orders that belong to the selected order types.
         store_ids:
           type: array
           items:
             type: integer
+          description: Filters orders based on the provided store IDs—only orders from these stores will be shown.
         status:
           type: integer
+        description: Filters the data to include only orders that match the specified order status.
         search_text:
           type: string
+        description: If a keyword is provided, it will return orders matching that text in order ID.
 
     OrderSort:
       type: object
       properties:
         sort_by:
           type: string
+          description: Field by which the orders should be sorted.
         sort_order:
           type: integer
+          description: Defines the sort direction — use `1` for ascending and `-1` for descending order.
 
     GetOrdersRequest:
       type: object
