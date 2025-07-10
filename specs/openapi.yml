@@ -503,7 +503,8 @@ components:
           description: Optional metadata as key-value pairs.  
             - If status is `9` (cancelled), then `reason` (string) must be provided in metadata.  
             - If order is being marked ready or similar, `prep_time` (integer in minutes) may also be included.
-
+            - If the `status` is being changed, you **must** also include a `status_description` (string) in metadata, 
+              which will be used as the note in the order event log.
     UpdateOrderResponse:
       type: object
       properties:
