@@ -24,6 +24,16 @@ components:
       type: apiKey
       in: header
       name: X-API-Key
+  parameters:
+    AcceptLanguageHeader:
+      name: Accept-Language
+      in: header
+      description: Language preference (e.g., en, fr, es)
+      required: false
+      schema:
+        type: string
+        enum: [en, fr, es]
+        default: en
   schemas:
     TestRequest:
       type: object
