@@ -27,8 +27,8 @@ servers:
     description: Environment-based server
     variables:
       environment:
-        enum: [prod, staging, dev]
-        default: prod
+        enum: [dev, staging, test]
+        default: dev
 
 security:
   - BearerAuth: []
