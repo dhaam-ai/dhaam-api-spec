@@ -1,0 +1,1799 @@
+openapi: 3.0.1
+info:
+  title: Dhaam Catalog Service API
+  description: |
+    Comprehensive API documentation for Dhaam Catalog Service.
+    Manages categories, items (products, modifiers, variants, bundles, deals, upsells), and menu configurations.
+  version: 1.0.0
+  contact:
+    name: Chirag Sharma
+    email: chirag@dhaam.com
+
+servers:
+  - url: https://dev-nexus.dhaamai.com/api/v1/catalog
+    description: Dev server
+  - url: https://staging-nexus.dhaamai.com/api/v1/catalog
+    description: Staging server
+  - url: https://test-nexus.dhaamai.com/api/v1/catalog
+    description: Testing server
+
+security:
+  - BearerAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    XUserIdHeader:
+      name: X-User-Id
+      in: header
+      required: true
+      description: User/Owner ID
+      schema:
+        type: string
+        format: uuid
+    
+    XTenantIdHeader:
+      name: X-Tenant-Id
+      in: header
+      required: true
+      description: Tenant ID
+      schema:
+        type: string
+
+    CategoryIdPath:
+      name: id
+      in: path
+      required: true
+      description: Category UUID
+      schema:
+        type: string
+        format: uuid
+
+    ItemIdPath:
+      name: id
+      in: path
+      required: true
+      description: Item UUID
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    # ==================== Domain Models ====================
+    
+    Category:
+      type: object
+      properties:
+        category_id:
+          type: integer
+          example: 1
+        category_uuid:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        category_name:
+          type: string
+          example: "Beverages"
+        main_parent_category_name:
+          type: string
+          example: "Drinks"
+        category_name_lang:
+          type: object
+          additionalProperties:
+            type: string
+          example: {"en": "Beverages", "hi": "पेय पदार्थ"}
+        owner_id:
+          type: string
+          example: "owner_123"
+        type:
+          type: string
+          example: "standard"
+        thumb_url:
+          type: string
+          example: "https://cdn.dhaam.ai/thumb.jpg"
+        image:
+          type: string
+          example: "https://cdn.dhaam.ai/category.jpg"
+        is_enabled:
+          type: boolean
+          example: true
+        is_deleted:
+          type: boolean
+          example: false
+        has_products:
+          type: boolean
+          example: true
+        has_children:
+          type: boolean
+          example: false
+        depth:
+          type: integer
+          example: 1
+        sequence:
+          type: integer
+          example: 1
+        description:
+          type: string
+          example: "All beverage items"
+        description_lang:
+          type: object
+          additionalProperties:
+            type: string
+        category_type:
+          type: integer
+          example: 1
+        business_categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/BusinessCategory'
+        sub_categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/Category'
+
+    BusinessCategory:
+      type: object
+      properties:
+        id:
+          type: integer
+        uuid:
+          type: string
+          format: uuid
+        name:
+          type: string
+
+    Item:
+      type: object
+      properties:
+        item_id:
+          type: integer
+          example: 101
+        item_uuid:
+          type: string
+          format: uuid
+        item_name:
+          type: string
+          example: "Cappuccino"
+        plu:
+          type: string
+          example: "BEV001"
+        item_name_lang:
+          type: object
+          additionalProperties:
+            type: string
+        owner_id:
+          type: string
+        thumb_url:
+          type: string
+        image:
+          type: string
+        multi_image:
+          type: array
+          items:
+            type: string
+        multi_video:
+          type: array
+          items:
+            type: string
+        is_enabled:
+          type: integer
+          example: 1
+        is_deleted:
+          type: integer
+          example: 0
+        sequence:
+          type: integer
+        description:
+          type: string
+        description_lang:
+          type: object
+          additionalProperties:
+            type: string
+        is_veg:
+          type: integer
+          example: 1
+        sku:
+          type: string
+        min_qty:
+          type: integer
+          example: 1
+        max_qty:
+          type: integer
+          example: 10
+        inventor_enabled:
+          type: integer
+        available_qty:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/Tag'
+        search_tags:
+          type: array
+          items:
+            type: string
+        prepration_time:
+          type: integer
+          example: 15
+        is_item_linkable:
+          type: integer
+        entity_type:
+          type: integer
+          example: 1
+        entity_type_name:
+          type: string
+          example: "product"
+        is_default:
+          type: integer
+        is_required:
+          type: integer
+        is_active:
+          type: integer
+        is_multi_select:
+          type: integer
+        min_option:
+          type: integer
+        max_option:
+          type: integer
+        minimum_selection_required:
+          type: integer
+        status:
+          type: integer
+        customize_id:
+          type: integer
+        cost_price:
+          type: number
+          format: double
+        price:
+          type: number
+          format: double
+        pricing:
+          $ref: '#/components/schemas/ItemExtended'
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/BusinessCategory'
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/AttachedItem'
+        upsells:
+          type: array
+          items:
+            $ref: '#/components/schemas/AttachedItem'
+        modifier_groups:
+          type: array
+          items:
+            $ref: '#/components/schemas/AttachedItem'
+        modifiers:
+          type: array
+          items:
+            $ref: '#/components/schemas/AttachedItem'
+        bundles:
+          type: array
+          items:
+            $ref: '#/components/schemas/AttachedItem'
+        item_templates:
+          type: array
+          items:
+            $ref: '#/components/schemas/ItemTemplate'
+
+    AttachedItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        uuid:
+          type: string
+          format: uuid
+        name:
+          type: string
+        is_active:
+          type: integer
+        description:
+          type: string
+        is_default:
+          type: integer
+        price:
+          type: number
+          format: double
+        plu:
+          type: string
+        image:
+          type: string
+        entity_type_name:
+          type: string
+        customize_id:
+          type: integer
+        sequence:
+          type: integer
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/AttachedItem'
+        modifiers:
+          type: array
+          items:
+            $ref: '#/components/schemas/AttachedItem'
+        modifier_groups:
+          type: array
+          items:
+            $ref: '#/components/schemas/AttachedItem'
+        upsells:
+          type: array
+          items:
+            $ref: '#/components/schemas/AttachedItem'
+        variants:
+          type: array
+          items:
+            $ref: '#/components/schemas/AttachedItem'
+
+    ItemExtended:
+      type: object
+      properties:
+        item_id:
+          type: integer
+        menu_id:
+          type: integer
+        region_id:
+          type: integer
+        store_id:
+          type: integer
+        prep_time_minutes:
+          type: integer
+        custom_name:
+          type: string
+        custom_name_lang:
+          type: string
+        custom_description:
+          type: string
+        custom_description_lang:
+          type: object
+          additionalProperties:
+            type: string
+        custom_sequence:
+          type: integer
+        custom_image:
+          type: string
+        custom_thumb_url:
+          type: string
+        properties:
+          type: string
+        priority:
+          type: integer
+        status:
+          type: integer
+        price:
+          type: number
+          format: double
+        mrp:
+          type: number
+          format: double
+        cost_price:
+          type: number
+          format: double
+        is_pricing_enabled:
+          type: boolean
+        is_pricing_deleted:
+          type: boolean
+
+    ItemTemplate:
+      type: object
+      properties:
+        id:
+          type: integer
+        template_uuid:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        image:
+          type: string
+        type:
+          type: string
+        sequence:
+          type: integer
+        is_active:
+          type: boolean
+        item_template_attributes:
+          type: array
+          items:
+            $ref: '#/components/schemas/TemplateAttribute'
+
+    TemplateAttribute:
+      type: object
+      properties:
+        id:
+          type: integer
+        attribute_name:
+          type: string
+        attribute_value:
+          type: string
+        sequence:
+          type: integer
+
+    Tag:
+      type: object
+      properties:
+        id:
+          type: integer
+        tag_name:
+          type: string
+
+    # ==================== Request Schemas ====================
+
+    CategoryRequest:
+      type: object
+      required:
+        - type
+        - category_name
+        - category_type
+        - owner_id
+      properties:
+        business_category_id:
+          type: array
+          items:
+            type: integer
+        parent_category_id:
+          type: string
+          format: uuid
+        type:
+          type: string
+        category_name:
+          type: string
+        category_name_lang:
+          type: object
+          additionalProperties:
+            type: string
+        category_type:
+          type: integer
+        owner_id:
+          type: string
+        description:
+          type: string
+        description_lang:
+          type: object
+          additionalProperties:
+            type: string
+        thumb_url:
+          type: string
+        image:
+          type: string
+        has_children:
+          type: boolean
+        has_products:
+          type: boolean
+        sequence:
+          type: integer
+        product_ids:
+          type: array
+          items:
+            type: integer
+        sub_categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/CategoryRequest'
+
+    UpdateCategoryRequest:
+      type: object
+      properties:
+        category_name:
+          type: string
+        category_name_lang:
+          type: object
+          additionalProperties:
+            type: string
+        description:
+          type: string
+        description_lang:
+          type: object
+          additionalProperties:
+            type: string
+        thumb_url:
+          type: string
+        image:
+          type: string
+        sequence:
+          type: integer
+
+    CategoryPaginationRequest:
+      type: object
+      properties:
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 20
+        search:
+          type: string
+        owner_id:
+          type: string
+        is_want_leaf_category:
+          type: boolean
+        filters:
+          type: object
+
+    DuplicateCategoryRequest:
+      type: object
+      properties:
+        category_name:
+          type: string
+        owner_id:
+          type: string
+
+    ReorderRequest:
+      type: object
+      properties:
+        request:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              sequence:
+                type: integer
+
+    EnableDisableRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        is_enabled:
+          type: boolean
+
+    AssignBusinessCategoryRequest:
+      type: object
+      properties:
+        business_category_ids:
+          type: array
+          items:
+            type: integer
+        category_uuid:
+          type: string
+          format: uuid
+
+    CreateItemRequest:
+      type: object
+      required:
+        - item_name
+        - plu
+        - entity_type
+      properties:
+        item_name:
+          type: string
+        plu:
+          type: string
+        item_name_lang:
+          type: object
+          additionalProperties:
+            type: string
+        entity_type:
+          type: integer
+        owner_id:
+          type: string
+        thumb_url:
+          type: string
+        sequence:
+          type: integer
+        description_lang:
+          type: object
+          additionalProperties:
+            type: string
+        inventory_count:
+          type: integer
+        description:
+          type: string
+        sku:
+          type: string
+        is_veg:
+          type: integer
+        min_qty:
+          type: integer
+        max_qty:
+          type: integer
+        min_option:
+          type: integer
+        max_option:
+          type: integer
+        image:
+          type: string
+        multi_image:
+          type: array
+          items:
+            type: string
+        multi_video:
+          type: array
+          items:
+            type: string
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/Tag'
+        search_tags:
+          type: array
+          items:
+            type: string
+        prepration_time:
+          type: integer
+        is_item_linkable:
+          type: integer
+        is_multi_select:
+          type: integer
+        charge_tax:
+          type: number
+        is_active:
+          type: integer
+        is_customized:
+          type: boolean
+        categories:
+          type: array
+          items:
+            type: integer
+        category_uuids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/MapProductIds'
+        upsells:
+          type: array
+          items:
+            $ref: '#/components/schemas/MapProductIds'
+        modifier_groups:
+          type: array
+          items:
+            $ref: '#/components/schemas/MapProductIds'
+        modifiers:
+          type: array
+          items:
+            $ref: '#/components/schemas/MapProductIds'
+        bundles:
+          type: array
+          items:
+            $ref: '#/components/schemas/MapProductIds'
+        pricing:
+          $ref: '#/components/schemas/PricingRequest'
+
+    UpdateItemRequest:
+      type: object
+      properties:
+        item_name:
+          type: string
+        plu:
+          type: string
+        item_name_lang:
+          type: object
+          additionalProperties:
+            type: string
+        thumb_url:
+          type: string
+        sequence:
+          type: integer
+        description_lang:
+          type: object
+          additionalProperties:
+            type: string
+        description:
+          type: string
+        sku:
+          type: string
+        is_veg:
+          type: integer
+        min_qty:
+          type: integer
+        max_qty:
+          type: integer
+        min_option:
+          type: integer
+        max_option:
+          type: integer
+        image:
+          type: string
+        multi_image:
+          type: array
+          items:
+            type: string
+        multi_video:
+          type: array
+          items:
+            type: string
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/Tag'
+        search_tags:
+          type: array
+          items:
+            type: string
+        prepration_time:
+          type: integer
+        is_item_linkable:
+          type: integer
+        is_multi_select:
+          type: integer
+        is_active:
+          type: integer
+        categories:
+          type: array
+          items:
+            type: integer
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/MapProductIds'
+        upsells:
+          type: array
+          items:
+            $ref: '#/components/schemas/MapProductIds'
+        modifier_groups:
+          type: array
+          items:
+            $ref: '#/components/schemas/MapProductIds'
+        modifiers:
+          type: array
+          items:
+            $ref: '#/components/schemas/MapProductIds'
+        bundles:
+          type: array
+          items:
+            $ref: '#/components/schemas/MapProductIds'
+        pricing:
+          $ref: '#/components/schemas/PricingRequest'
+
+    MapProductIds:
+      type: object
+      properties:
+        item_id:
+          type: integer
+        item_uuid:
+          type: string
+          format: uuid
+        is_customized:
+          type: boolean
+        name:
+          type: string
+        item_name_lang:
+          type: object
+          additionalProperties:
+            type: string
+        is_default:
+          type: integer
+        price:
+          type: number
+        customize_id:
+          type: integer
+        is_active:
+          type: integer
+        image:
+          type: string
+        is_new:
+          type: boolean
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/MapProductIds'
+        upsells:
+          type: array
+          items:
+            $ref: '#/components/schemas/MapProductIds'
+        modifiers:
+          type: array
+          items:
+            $ref: '#/components/schemas/MapProductIds'
+        variants:
+          type: array
+          items:
+            $ref: '#/components/schemas/MapProductIds'
+        modifier_groups:
+          type: array
+          items:
+            $ref: '#/components/schemas/MapProductIds'
+
+    PricingRequest:
+      type: object
+      properties:
+        price:
+          type: number
+          format: double
+        mrp:
+          type: number
+          format: double
+        cost_price:
+          type: number
+          format: double
+        region_id:
+          type: integer
+
+    ItemsPaginationRequest:
+      type: object
+      properties:
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 20
+        search:
+          type: string
+        owner_id:
+          type: string
+        entity_type:
+          type: integer
+        filters:
+          type: object
+
+    MapWithCategoryRequest:
+      type: object
+      properties:
+        category_uuids:
+          type: array
+          items:
+            type: string
+            format: uuid
+
+    TemplatesRequest:
+      type: object
+      properties:
+        item_uuid:
+          type: string
+          format: uuid
+        templates:
+          type: array
+          items:
+            type: object
+            properties:
+              template_uuid:
+                type: string
+                format: uuid
+              name:
+                type: string
+              description:
+                type: string
+              image:
+                type: string
+              type:
+                type: string
+              sequence:
+                type: integer
+              is_active:
+                type: boolean
+              attributes:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    attribute_name:
+                      type: string
+                    attribute_value:
+                      type: string
+                    sequence:
+                      type: integer
+
+    # ==================== Response Schemas ====================
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+        meta:
+          type: object
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+
+paths:
+  # ==================== Category Endpoints ====================
+
+  /category:
+    post:
+      tags:
+        - Category
+      summary: Create category with sub-categories
+      description: Creates a new category along with nested sub-categories
+      parameters:
+        - $ref: '#/components/parameters/XUserIdHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryRequest'
+      responses:
+        '200':
+          description: Category created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      category_id:
+                        type: integer
+                      name:
+                        type: string
+                      created_at:
+                        type: string
+                        format: date-time
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /category/{id}:
+    get:
+      tags:
+        - Category
+      summary: Get category hierarchy
+      description: Retrieves a category with its complete hierarchy (parent and children)
+      parameters:
+        - $ref: '#/components/parameters/CategoryIdPath'
+      responses:
+        '200':
+          description: Category retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Category'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      tags:
+        - Category
+      summary: Update category
+      description: Updates category details like name, description, image, etc.
+      parameters:
+        - $ref: '#/components/parameters/CategoryIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCategoryRequest'
+      responses:
+        '200':
+          description: Category updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Category'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /category/{id}/sub-category:
+    put:
+      tags:
+        - Category
+      summary: Add sub-category to parent category
+      description: Adds a new sub-category under an existing parent category
+      parameters:
+        - $ref: '#/components/parameters/CategoryIdPath'
+        - $ref: '#/components/parameters/XUserIdHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryRequest'
+      responses:
+        '200':
+          description: Sub-category added successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /category/{id}/duplicate:
+    post:
+      tags:
+        - Category
+      summary: Duplicate category
+      description: Creates a duplicate of an existing category with its hierarchy
+      parameters:
+        - $ref: '#/components/parameters/CategoryIdPath'
+        - $ref: '#/components/parameters/XUserIdHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DuplicateCategoryRequest'
+      responses:
+        '200':
+          description: Category duplicated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      category_id:
+                        type: integer
+                      category_uuid:
+                        type: string
+                        format: uuid
+                      category_name:
+                        type: string
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /category/{id}/undo:
+    post:
+      tags:
+        - Category
+      summary: Undo category deletion
+      description: Restores a previously deleted category
+      parameters:
+        - $ref: '#/components/parameters/CategoryIdPath'
+      responses:
+        '200':
+          description: Category restored successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /category/{id}/assign-business-category:
+    put:
+      tags:
+        - Category
+      summary: Assign business categories
+      description: Assigns business categories to a category
+      parameters:
+        - $ref: '#/components/parameters/CategoryIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignBusinessCategoryRequest'
+      responses:
+        '200':
+          description: Business categories assigned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /category/list:
+    post:
+      tags:
+        - Category
+      summary: Get categories with pagination
+      description: Retrieves paginated list of categories with optional filters
+      parameters:
+        - $ref: '#/components/parameters/XUserIdHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryPaginationRequest'
+      responses:
+        '200':
+          description: Categories retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Category'
+                  meta:
+                    type: object
+                    properties:
+                      total_count:
+                        type: integer
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /category/delete/{id}:
+    post:
+      tags:
+        - Category
+      summary: Delete category
+      description: Soft deletes a category by ID
+      parameters:
+        - $ref: '#/components/parameters/CategoryIdPath'
+      responses:
+        '200':
+          description: Category deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /category/enable-disable:
+    put:
+      tags:
+        - Category
+      summary: Enable/Disable category
+      description: Enables or disables a category
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnableDisableRequest'
+      responses:
+        '200':
+          description: Category status updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /category/reorder:
+    put:
+      tags:
+        - Category
+      summary: Reorder categories
+      description: Changes the sequence order of categories
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReorderRequest'
+      responses:
+        '200':
+          description: Categories reordered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /business-categories:
+    get:
+      tags:
+        - Category
+      summary: Get all business categories
+      description: Retrieves list of business categories for a user
+      parameters:
+        - $ref: '#/components/parameters/XUserIdHeader'
+      responses:
+        '200':
+          description: Business categories retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BusinessCategory'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /upload-to-s3:
+    post:
+      tags:
+        - Upload
+      summary: Upload image to S3
+      description: Uploads category or item image to AWS S3 bucket
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - entity
+                - name
+                - image
+              properties:
+                entity:
+                  type: string
+                  description: Entity type (category/item)
+                name:
+                  type: string
+                  description: Image name
+                image:
+                  type: string
+                  format: binary
+                  description: Image file
+      responses:
+        '200':
+          description: Image uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      url:
+                        type: string
+                        example: "https://cdn.dhaam.ai/uploads/image.jpg"
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ==================== Item Endpoints ====================
+
+  /item:
+    post:
+      tags:
+        - Item
+      summary: Create new item
+      description: Creates a new item (product, modifier, modifier group, variant, bundle, deal, or upsell)
+      parameters:
+        - $ref: '#/components/parameters/XUserIdHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateItemRequest'
+      responses:
+        '200':
+          description: Item created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Item'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /item/{id}:
+    get:
+      tags:
+        - Item
+      summary: Get item details
+      description: Retrieves complete details of an item by UUID
+      parameters:
+        - $ref: '#/components/parameters/ItemIdPath'
+      responses:
+        '200':
+          description: Item retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Item'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      tags:
+        - Item
+      summary: Update item
+      description: Updates item details (supports all entity types)
+      parameters:
+        - $ref: '#/components/parameters/ItemIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateItemRequest'
+      responses:
+        '200':
+          description: Item updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Item'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /item/{id}/duplicate:
+    post:
+      tags:
+        - Item
+      summary: Duplicate item
+      description: Creates a duplicate of an existing item
+      parameters:
+        - $ref: '#/components/parameters/ItemIdPath'
+      responses:
+        '200':
+          description: Item duplicated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      item_id:
+                        type: integer
+                      item_uuid:
+                        type: string
+                        format: uuid
+                      item_name:
+                        type: string
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /item/{id}/undo:
+    post:
+      tags:
+        - Item
+      summary: Undo item deletion
+      description: Restores a previously deleted item
+      parameters:
+        - $ref: '#/components/parameters/ItemIdPath'
+      responses:
+        '200':
+          description: Item restored successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /item/{id}/map-with-category:
+    post:
+      tags:
+        - Item
+      summary: Map item with category
+      description: Links an item to one or more categories
+      parameters:
+        - $ref: '#/components/parameters/ItemIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MapWithCategoryRequest'
+      responses:
+        '200':
+          description: Item mapped successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /item/{id}/template:
+    get:
+      tags:
+        - Item
+      summary: Get item templates
+      description: Retrieves templates associated with an item
+      parameters:
+        - $ref: '#/components/parameters/ItemIdPath'
+      responses:
+        '200':
+          description: Templates retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ItemTemplate'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      tags:
+        - Item
+      summary: Add or update item templates
+      description: Adds new templates or updates existing templates for an item
+      parameters:
+        - $ref: '#/components/parameters/ItemIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TemplatesRequest'
+      responses:
+        '200':
+          description: Templates updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /item/list:
+    post:
+      tags:
+        - Item
+      summary: Get items with pagination
+      description: Retrieves paginated list of items with optional filters
+      parameters:
+        - $ref: '#/components/parameters/XUserIdHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ItemsPaginationRequest'
+      responses:
+        '200':
+          description: Items retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Item'
+                  meta:
+                    type: object
+                    properties:
+                      total_count:
+                        type: integer
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /item/delete/{id}:
+    post:
+      tags:
+        - Item
+      summary: Delete item
+      description: Soft deletes an item by UUID
+      parameters:
+        - $ref: '#/components/parameters/ItemIdPath'
+      responses:
+        '200':
+          description: Item deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /item/enable-disable:
+    put:
+      tags:
+        - Item
+      summary: Enable/Disable item
+      description: Enables or disables an item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnableDisableRequest'
+      responses:
+        '200':
+          description: Item status updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /item/reorder:
+    put:
+      tags:
+        - Item
+      summary: Reorder items
+      description: Changes the sequence order of items
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReorderRequest'
+      responses:
+        '200':
+          description: Items reordered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /item/reorder-selected-items:
+    put:
+      tags:
+        - Item
+      summary: Reorder selected items
+      description: Changes the sequence order of specific selected items
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      sequence:
+                        type: integer
+      responses:
+        '200':
+          description: Selected items reordered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /item/tags:
+    get:
+      tags:
+        - Item
+      summary: Get item tags
+      description: Retrieves all tags for items owned by a tenant
+      parameters:
+        - $ref: '#/components/parameters/XTenantIdHeader'
+      responses:
+        '200':
+          description: Tags retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Tag'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /configs:
+    get:
+      tags:
+        - Config
+      summary: Get menu configurations
+      description: Retrieves menu configuration settings
+      responses:
+        '200':
+          description: Configurations retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+tags:
+  - name: Category
+    description: Category management endpoints
+  - name: Item
+    description: Item management endpoints (products, modifiers, variants, etc.)
+  - name: Upload
+    description: File upload endpoints
+  - name: Config
+    description: Configuration endpoints

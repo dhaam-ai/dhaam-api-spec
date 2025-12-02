@@ -1,0 +1,2238 @@
+openapi: 3.0.1
+info:
+  title: Dhaam User Profile Service API
+  description: |
+    Comprehensive API documentation for Dhaam User Profile Service.
+    Manages user profiles, customers, merchants, stores, regions, geofences, outlets, preferences, and authentication.
+  version: 1.0.0
+  contact:
+    name: Chirag Sharma
+    email: chirag@dhaam.com
+
+servers:
+  - url: https://dev-nexus.dhaamai.com/api/v1/users
+    description: Dev server
+  - url: https://staging-nexus.dhaamai.com/api/v1/users
+    description: Staging server
+  - url: https://test-nexus.dhaamai.com/api/v1/users
+    description: Testing server
+
+security:
+  - BearerAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT Bearer token authentication
+
+  parameters:
+    AcceptLanguageHeader:
+      name: Accept-Language
+      in: header
+      description: Language preference (e.g., en, hi, es)
+      required: false
+      schema:
+        type: string
+        enum: [en, hi, es, fr]
+        default: en
+    
+    XTenantIdHeader:
+      name: X-Tenant-Id
+      in: header
+      required: true
+      description: Tenant/Client ID
+      schema:
+        type: string
+    
+    XUserIdHeader:
+      name: X-User-Id
+      in: header
+      required: false
+      description: User ID for authentication context
+      schema:
+        type: string
+        format: uuid
+    
+    XRoleHeader:
+      name: X-Role
+      in: header
+      required: false
+      description: User Role ID
+      schema:
+        type: string
+    
+    UserIdPath:
+      name: id
+      in: path
+      required: true
+      description: User UUID
+      schema:
+        type: string
+        format: uuid
+    
+    RegionIdPath:
+      name: id
+      in: path
+      required: true
+      description: Region UUID
+      schema:
+        type: string
+        format: uuid
+    
+    GeofenceIdPath:
+      name: id
+      in: path
+      required: true
+      description: Geofence UUID
+      schema:
+        type: string
+        format: uuid
+    
+    OutletIdPath:
+      name: id
+      in: path
+      required: true
+      description: Outlet UUID
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    # ==================== Domain Models ====================
+    
+    UserDetails:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: integer
+          format: int64
+        full_name:
+          type: string
+        is_active:
+          type: boolean
+        is_deleted:
+          type: boolean
+        country_code:
+          type: string
+        role_id:
+          type: integer
+          format: int64
+        phone:
+          type: string
+        additional_info:
+          type: object
+          additionalProperties: true
+        email:
+          type: string
+          format: email
+        date_of_birth:
+          type: string
+          format: date
+        last_platform_used:
+          type: string
+        verification_status:
+          type: integer
+          format: int64
+        created_at:
+          type: string
+          format: date-time
+        total_rating:
+          type: integer
+          format: int64
+        wallet_balance:
+          type: number
+          format: double
+        coins:
+          type: integer
+          format: int64
+        referral_code:
+          type: string
+        is_referral_codeUpdate:
+          type: boolean
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/Event'
+        total_debt:
+          type: number
+          format: double
+        total_orders:
+          type: integer
+          format: int64
+        addresses:
+          type: string
+
+    Event:
+      type: object
+      properties:
+        event_id:
+          type: string
+        eventType:
+          type: string
+        eventTime:
+          type: string
+          format: date-time
+        details:
+          type: string
+
+    MerchantProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: integer
+          format: int64
+        email:
+          type: string
+          format: email
+        is_active:
+          type: boolean
+        owner_name:
+          type: string
+        phone:
+          type: string
+        country_code:
+          type: string
+        business_type_id:
+          type: integer
+        city_id:
+          type: integer
+        addresses:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        city_name:
+          type: string
+        contact_person:
+          type: string
+        logo_url:
+          type: string
+        status_name:
+          type: string
+        status:
+          type: integer
+        avatar_url:
+          type: string
+        business_type:
+          type: string
+        full_name:
+          type: string
+        address:
+          type: string
+        surge_rules:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeliverySurgeRule'
+        preferences:
+          $ref: '#/components/schemas/MerchantPreferences'
+
+    DeliverySurgeRule:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        start_time:
+          type: string
+          pattern: '^([0-1]?[0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$'
+          example: "09:00:00"
+        end_time:
+          type: string
+          pattern: '^([0-1]?[0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$'
+          example: "18:00:00"
+        surge_value:
+          type: number
+          format: double
+        is_active:
+          type: boolean
+        store_id:
+          type: string
+          format: uuid
+
+    MerchantPreferences:
+      type: object
+      properties:
+        order_settings:
+          $ref: '#/components/schemas/OrderSettings'
+        delivery:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeliveryManagedItem'
+        business_settings:
+          $ref: '#/components/schemas/BusinessSettings'
+        notification_settings:
+          $ref: '#/components/schemas/NotificationSettings'
+
+    OrderSettings:
+      type: object
+      properties:
+        min_order_amount:
+          type: number
+          format: double
+        max_order_amount:
+          type: number
+          format: double
+        prep_time_minutes:
+          type: integer
+        auto_accept_order:
+          type: boolean
+        is_max_orders_per_slot:
+          type: boolean
+        is_time_range_slot:
+          type: boolean
+        cancel_after_minutes:
+          type: integer
+        time_slot_duration_minutes:
+          type: integer
+          enum: [15, 30, 60]
+        max_orders_per_slot:
+          type: integer
+        checkout_template_id:
+          type: string
+          format: uuid
+        schedule_enabled:
+          type: boolean
+        on_demand_enabled:
+          type: boolean
+
+    DeliveryManagedItem:
+      type: object
+      properties:
+        delivery_managed_by:
+          type: integer
+        delivery_settings:
+          $ref: '#/components/schemas/DeliverySettings'
+
+    DeliverySettings:
+      type: object
+      properties:
+        delivery_managed_by:
+          type: integer
+        delivery_time_minutes:
+          type: integer
+        delivery_tax_id:
+          type: string
+          format: uuid
+        delivery_charge_type:
+          type: string
+        delivery_charge:
+          type: number
+          format: double
+        delivery_timing_type:
+          type: string
+        api_key_charge:
+          type: string
+        api_key_timing:
+          type: string
+        delivery_charge_surge_enabled:
+          type: boolean
+        delivery_modes:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeliveryModeEntry'
+
+    DeliveryModeEntry:
+      type: object
+      required:
+        - type
+        - enabled
+      properties:
+        type:
+          type: integer
+          enum: [1, 2, 3, 4]
+          description: "1=home_delivery, 2=pickup_delivery, 3=dine_in, 4=takeaway"
+        enabled:
+          type: boolean
+        min_order_amount:
+          type: number
+          format: double
+        max_order_amount:
+          type: number
+          format: double
+
+    BusinessSettings:
+      type: object
+      properties:
+        short_url:
+          type: string
+        custom_url_slug:
+          type: string
+        qr_code_enabled:
+          type: boolean
+        qr_code_image_url:
+          type: string
+        primary_language:
+          type: string
+        secondary_language:
+          type: array
+          items:
+            type: string
+        inventory_sync_enabled:
+          type: boolean
+        buffer_time:
+          type: integer
+          format: int64
+
+    NotificationSettings:
+      type: object
+      properties:
+        custom_url_sound:
+          type: string
+        order_reminder_interval:
+          type: integer
+        predefined_sound:
+          type: string
+        default_notification_channel:
+          $ref: '#/components/schemas/NotificationChannel'
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotificationEvent'
+
+    NotificationChannel:
+      type: object
+      properties:
+        push_notification:
+          type: boolean
+        sms_enabled:
+          type: boolean
+        email_enabled:
+          type: boolean
+        voice_call_enabled:
+          type: boolean
+        whats_app_enabled:
+          type: boolean
+
+    NotificationEvent:
+      type: object
+      properties:
+        event_type:
+          type: integer
+        notification_channel:
+          $ref: '#/components/schemas/NotificationChannel'
+
+    Region:
+      type: object
+      properties:
+        region_id:
+          type: integer
+          format: int64
+        region_uuid:
+          type: string
+          format: uuid
+        region_name:
+          type: string
+        description:
+          type: string
+        store_uuid:
+          type: string
+          format: uuid
+        store_id:
+          type: integer
+          format: int64
+        region_code:
+          type: string
+        timezone:
+          type: string
+        is_active:
+          type: boolean
+        assign_outlet:
+          type: string
+        geofence_counts:
+          type: integer
+          format: int64
+        display_order:
+          type: integer
+        created_by:
+          type: integer
+          format: int64
+        city_id:
+          type: integer
+          format: int64
+        outlet_id:
+          type: integer
+          format: int64
+
+    Geofence:
+      type: object
+      properties:
+        geofence_id:
+          type: integer
+          format: int64
+        geofence_uuid:
+          type: string
+          format: uuid
+        store_id:
+          type: integer
+          format: int64
+        region_id:
+          type: integer
+          format: int64
+        geofence_name:
+          type: string
+        type:
+          type: string
+          enum: [polygon, circle, rectangle]
+        geometry:
+          type: string
+        geometry_data:
+          type: object
+          additionalProperties: true
+        description:
+          type: string
+        is_active:
+          type: boolean
+        priority:
+          type: integer
+        created_by:
+          type: integer
+          format: int64
+
+    Outlet:
+      type: object
+      properties:
+        outlet_id:
+          type: integer
+          format: int64
+        outlet_uuid:
+          type: string
+          format: uuid
+        store_id:
+          type: integer
+          format: int64
+        outlet_name:
+          type: string
+        description:
+          type: string
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        password_hash:
+          type: string
+        location_address:
+          type: string
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+        region_ids:
+          type: array
+          items:
+            type: integer
+            format: int64
+        regions:
+          type: array
+          items:
+            type: object
+            properties:
+              region_id:
+                type: integer
+                format: int64
+              region_uuid:
+                type: string
+                format: uuid
+              region_name:
+                type: string
+        is_active:
+          type: boolean
+        created_by:
+          type: integer
+          format: int64
+
+    Preferences:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        language:
+          type: string
+        receive_promotions:
+          type: boolean
+        notifications:
+          type: object
+          additionalProperties: true
+        metadata:
+          type: object
+          additionalProperties: true
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Address:
+      type: object
+      required:
+        - user_id
+        - address_line_1
+        - city
+        - country
+        - latitude
+        - longitude
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        label:
+          type: string
+        address_line_1:
+          type: string
+        address_line_2:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        postal_code:
+          type: string
+        is_default:
+          type: boolean
+        country:
+          type: string
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+
+    BusinessConfig:
+      type: object
+      properties:
+        tenant_id:
+          type: integer
+          format: int64
+        domain_name:
+          type: string
+        allowed_business:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              code:
+                type: string
+              label:
+                type: string
+              logo:
+                type: string
+
+    Language:
+      type: object
+      properties:
+        id:
+          type: string
+        code:
+          type: string
+        name:
+          type: string
+        is_active:
+          type: boolean
+
+    # ==================== Request Schemas ====================
+    
+    TenantRegisterRequest:
+      type: object
+      required:
+        - business_name
+        - email
+        - phone
+        - country_code
+      properties:
+        business_name:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        country_code:
+          type: string
+        domain_name:
+          type: string
+
+    TenantLoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+
+    StoreRegisterRequest:
+      type: object
+      required:
+        - owner_name
+        - email
+        - phone
+        - country_code
+        - business_type_id
+      properties:
+        owner_name:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        country_code:
+          type: string
+        business_type_id:
+          type: integer
+        city_id:
+          type: integer
+        address:
+          type: string
+        tenant_id:
+          type: integer
+          format: int64
+
+    MerchantLoginRequest:
+      type: object
+      required:
+        - email
+        - password
+        - tenant_id
+        - role
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+        tenant_id:
+          type: string
+        role:
+          type: string
+
+    AddCustomerRequest:
+      type: object
+      required:
+        - name
+        - email
+        - phone
+        - country_code
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        country_code:
+          type: string
+        additional_info:
+          type: object
+          additionalProperties: true
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        full_name:
+          type: string
+          minLength: 2
+          maxLength: 100
+        additional_info:
+          type: object
+          additionalProperties: true
+
+    UpdateCustomerStatusRequest:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum: [block_unblock, verify]
+        is_block:
+          type: boolean
+        verification_status:
+          type: integer
+
+    UpdateReferralCodeRequest:
+      type: object
+      required:
+        - referral_code
+      properties:
+        referral_code:
+          type: string
+
+    AddressRequest:
+      type: object
+      required:
+        - user_id
+        - address_line_1
+        - city
+        - country
+        - latitude
+        - longitude
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        label:
+          type: string
+        address_line_1:
+          type: string
+        address_line_2:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        postal_code:
+          type: string
+        country:
+          type: string
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+
+    CustomerListRequest:
+      type: object
+      required:
+        - current_page
+        - limit
+      properties:
+        current_page:
+          type: integer
+        limit:
+          type: integer
+        search_text:
+          type: string
+        filters:
+          type: object
+          properties:
+            platform_used:
+              type: array
+              items:
+                type: integer
+            verification_status:
+              type: array
+              items:
+                type: integer
+            account_status:
+              type: array
+              items:
+                type: integer
+        sort:
+          type: object
+          properties:
+            sort_by:
+              type: string
+            sort_order:
+              type: integer
+
+    MerchantListRequest:
+      type: object
+      required:
+        - current_page
+        - limit
+      properties:
+        current_page:
+          type: integer
+        limit:
+          type: integer
+        search_text:
+          type: string
+        filters:
+          type: object
+          properties:
+            status:
+              type: array
+              items:
+                type: integer
+            business_type:
+              type: array
+              items:
+                type: integer
+            city:
+              type: array
+              items:
+                type: integer
+        sort:
+          type: object
+          properties:
+            sort_by:
+              type: string
+            sort_order:
+              type: integer
+
+    MerchantStatusRequest:
+      type: object
+      required:
+        - store_ids
+        - status
+      properties:
+        store_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        status:
+          type: integer
+
+    BulkDeleteStoreRequest:
+      type: object
+      required:
+        - store_ids
+      properties:
+        store_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+
+    SettingsRequest:
+      type: object
+      required:
+        - store_id
+      properties:
+        store_id:
+          type: string
+          format: uuid
+        order_settings:
+          $ref: '#/components/schemas/OrderSettings'
+        delivery:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeliveryManagedItem'
+        delivery_surge:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeliverySurgeRule'
+        business_settings:
+          $ref: '#/components/schemas/BusinessSettings'
+        notification_settings:
+          $ref: '#/components/schemas/NotificationSettings'
+
+    AddRegionRequest:
+      type: object
+      required:
+        - region_name
+        - store_id
+      properties:
+        region_name:
+          type: string
+        description:
+          type: string
+        store_id:
+          type: integer
+          format: int64
+        region_code:
+          type: string
+        timezone:
+          type: string
+        city_id:
+          type: integer
+          format: int64
+        outlet_id:
+          type: integer
+          format: int64
+        display_order:
+          type: integer
+
+    EditRegionRequest:
+      type: object
+      properties:
+        region_name:
+          type: string
+        description:
+          type: string
+        region_code:
+          type: string
+        timezone:
+          type: string
+        city_id:
+          type: integer
+          format: int64
+        outlet_id:
+          type: integer
+          format: int64
+        display_order:
+          type: integer
+
+    RegionListRequest:
+      type: object
+      required:
+        - current_page
+        - limit
+      properties:
+        current_page:
+          type: integer
+        limit:
+          type: integer
+        search_text:
+          type: string
+        store_id:
+          type: integer
+          format: int64
+
+    ChangeRegionStatusRequest:
+      type: object
+      required:
+        - is_active
+      properties:
+        is_active:
+          type: boolean
+
+    AddGeofenceRequest:
+      type: object
+      required:
+        - geofence_name
+        - store_id
+        - region_id
+        - type
+        - geometry_data
+      properties:
+        geofence_name:
+          type: string
+        store_id:
+          type: integer
+          format: int64
+        region_id:
+          type: integer
+          format: int64
+        type:
+          type: string
+          enum: [polygon, circle, rectangle]
+        geometry_data:
+          type: object
+          additionalProperties: true
+        description:
+          type: string
+        priority:
+          type: integer
+
+    EditGeofenceRequest:
+      type: object
+      properties:
+        geofence_name:
+          type: string
+        region_id:
+          type: integer
+          format: int64
+        type:
+          type: string
+          enum: [polygon, circle, rectangle]
+        geometry_data:
+          type: object
+          additionalProperties: true
+        description:
+          type: string
+        priority:
+          type: integer
+
+    GeofenceListRequest:
+      type: object
+      required:
+        - current_page
+        - limit
+      properties:
+        current_page:
+          type: integer
+        limit:
+          type: integer
+        search_text:
+          type: string
+        store_id:
+          type: integer
+          format: int64
+        region_id:
+          type: integer
+          format: int64
+
+    ChangeGeofenceStatusRequest:
+      type: object
+      required:
+        - is_active
+      properties:
+        is_active:
+          type: boolean
+
+    AddOutletRequest:
+      type: object
+      required:
+        - outlet_name
+        - store_id
+        - email
+        - username
+        - password
+      properties:
+        outlet_name:
+          type: string
+        store_id:
+          type: integer
+          format: int64
+        description:
+          type: string
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+        location_address:
+          type: string
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+        region_ids:
+          type: array
+          items:
+            type: integer
+            format: int64
+
+    EditOutletRequest:
+      type: object
+      properties:
+        outlet_name:
+          type: string
+        description:
+          type: string
+        email:
+          type: string
+          format: email
+        location_address:
+          type: string
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+        region_ids:
+          type: array
+          items:
+            type: integer
+            format: int64
+
+    OutletListRequest:
+      type: object
+      required:
+        - current_page
+        - limit
+      properties:
+        current_page:
+          type: integer
+        limit:
+          type: integer
+        search_text:
+          type: string
+        store_id:
+          type: integer
+          format: int64
+
+    ChangeOutletStatusRequest:
+      type: object
+      required:
+        - is_active
+      properties:
+        is_active:
+          type: boolean
+
+    UpdatePreferencesRequest:
+      type: object
+      properties:
+        language:
+          type: string
+        receive_promotions:
+          type: boolean
+        notifications:
+          type: object
+          additionalProperties: true
+        metadata:
+          type: object
+          additionalProperties: true
+
+    # ==================== Response Schemas ====================
+    
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          description: Response payload
+        meta:
+          type: object
+          description: Metadata (pagination, etc.)
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+
+    AuthResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        user:
+          type: object
+
+paths:
+  # ==================== HEALTH & CONFIG ====================
+  /health:
+    get:
+      tags:
+        - System
+      summary: Health check
+      security: []
+      responses:
+        '200':
+          description: Service health status
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          status:
+                            type: string
+                            example: healthy
+                          service:
+                            type: string
+                            example: dh-profile
+                          timestamp:
+                            type: string
+                            format: date-time
+                          version:
+                            type: string
+                            example: "1.0.0"
+
+  /business/info:
+    get:
+      tags:
+        - Config
+      summary: Get business configuration
+      security: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: domain_name
+          in: query
+          required: false
+          schema:
+            type: string
+        - $ref: '#/components/parameters/AcceptLanguageHeader'
+      responses:
+        '200':
+          description: Business configuration retrieved
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/BusinessConfig'
+
+  /languages:
+    get:
+      tags:
+        - Config
+      summary: Get available languages
+      security: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Languages retrieved
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Language'
+
+  # ==================== AUTHENTICATION ====================
+  /tenant/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register new tenant
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguageHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TenantRegisterRequest'
+      responses:
+        '200':
+          description: Tenant registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /tenant/login:
+    post:
+      tags:
+        - Authentication
+      summary: Tenant login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TenantLoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AuthResponse'
+
+  /store/register:
+    post:
+      tags:
+        - Store Management
+      summary: Register new store/merchant
+      parameters:
+        - $ref: '#/components/parameters/XTenantIdHeader'
+        - $ref: '#/components/parameters/AcceptLanguageHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StoreRegisterRequest'
+      responses:
+        '200':
+          description: Store registered successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/MerchantProfile'
+
+  /store/login:
+    post:
+      tags:
+        - Authentication
+      summary: Merchant/Store login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MerchantLoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AuthResponse'
+
+  # ==================== STORE MANAGEMENT ====================
+  /store/list:
+    post:
+      tags:
+        - Store Management
+      summary: Get merchants/stores list with filters
+      parameters:
+        - $ref: '#/components/parameters/XTenantIdHeader'
+        - $ref: '#/components/parameters/AcceptLanguageHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MerchantListRequest'
+      responses:
+        '200':
+          description: Merchants retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/MerchantProfile'
+                      meta:
+                        type: object
+                        properties:
+                          total_count:
+                            type: integer
+
+  /store/status:
+    put:
+      tags:
+        - Store Management
+      summary: Update merchant status (bulk)
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguageHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MerchantStatusRequest'
+      responses:
+        '200':
+          description: Status updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /store/delete:
+    put:
+      tags:
+        - Store Management
+      summary: Delete stores (bulk)
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguageHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkDeleteStoreRequest'
+      responses:
+        '200':
+          description: Stores deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /store/configuration:
+    get:
+      tags:
+        - Store Management
+      summary: Get merchant configuration options
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguageHeader'
+      responses:
+        '200':
+          description: Configuration retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          status:
+                            type: array
+                            items:
+                              type: object
+                          business_types:
+                            type: array
+                            items:
+                              type: object
+                          cities:
+                            type: array
+                            items:
+                              type: object
+
+  /store/settings:
+    post:
+      tags:
+        - Store Management
+      summary: Update store settings
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguageHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SettingsRequest'
+      responses:
+        '200':
+          description: Settings updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+    
+    get:
+      tags:
+        - Store Management
+      summary: Get store settings
+      parameters:
+        - name: store_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/AcceptLanguageHeader'
+      responses:
+        '200':
+          description: Settings retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/MerchantPreferences'
+
+  /store/delivery-surge/{id}:
+    put:
+      tags:
+        - Store Management
+      summary: Delete delivery surge rule
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Surge rule UUID
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/AcceptLanguageHeader'
+      responses:
+        '200':
+          description: Surge rule deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  # ==================== CUSTOMER MANAGEMENT ====================
+  /customer/add:
+    post:
+      tags:
+        - Customer Management
+      summary: Add new customer
+      parameters:
+        - $ref: '#/components/parameters/XTenantIdHeader'
+        - $ref: '#/components/parameters/AcceptLanguageHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddCustomerRequest'
+      responses:
+        '200':
+          description: Customer added successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /customer/list:
+    post:
+      tags:
+        - Customer Management
+      summary: Get customers list with filters
+      parameters:
+        - $ref: '#/components/parameters/XTenantIdHeader'
+        - $ref: '#/components/parameters/AcceptLanguageHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerListRequest'
+      responses:
+        '200':
+          description: Customers retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/UserDetails'
+                      meta:
+                        type: object
+                        properties:
+                          total_count:
+                            type: integer
+                          filters:
+                            type: object
+
+  /customer/{id}:
+    get:
+      tags:
+        - Customer Management
+      summary: Get customer profile
+      parameters:
+        - $ref: '#/components/parameters/UserIdPath'
+        - $ref: '#/components/parameters/AcceptLanguageHeader'
+      responses:
+        '200':
+          description: Customer profile retrieved
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/UserDetails'
+    
+    put:
+      tags:
+        - Customer Management
+      summary: Update customer profile
+      parameters:
+        - $ref: '#/components/parameters/UserIdPath'
+        - $ref: '#/components/parameters/AcceptLanguageHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /customer/{id}/status:
+    put:
+      tags:
+        - Customer Management
+      summary: Update customer status (block/unblock/verify)
+      parameters:
+        - $ref: '#/components/parameters/UserIdPath'
+        - $ref: '#/components/parameters/AcceptLanguageHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCustomerStatusRequest'
+      responses:
+        '200':
+          description: Status updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /customer/{id}/referral-code:
+    put:
+      tags:
+        - Customer Management
+      summary: Update customer referral code
+      parameters:
+        - $ref: '#/components/parameters/UserIdPath'
+        - $ref: '#/components/parameters/AcceptLanguageHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateReferralCodeRequest'
+      responses:
+        '200':
+          description: Referral code updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /customer/delete/{id}:
+    delete:
+      tags:
+        - Customer Management
+      summary: Delete customer
+      parameters:
+        - $ref: '#/components/parameters/UserIdPath'
+        - $ref: '#/components/parameters/AcceptLanguageHeader'
+      responses:
+        '200':
+          description: Customer deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /customer/events/{id}:
+    get:
+      tags:
+        - Customer Management
+      summary: Get customer events history
+      parameters:
+        - $ref: '#/components/parameters/UserIdPath'
+        - $ref: '#/components/parameters/AcceptLanguageHeader'
+      responses:
+        '200':
+          description: Events retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          user_id:
+                            type: string
+                            format: uuid
+                          events:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Event'
+
+  /customer/{id}/preferences:
+    get:
+      tags:
+        - Customer Management
+      summary: Get customer preferences
+      parameters:
+        - $ref: '#/components/parameters/UserIdPath'
+        - $ref: '#/components/parameters/AcceptLanguageHeader'
+      responses:
+        '200':
+          description: Preferences retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Preferences'
+    
+    put:
+      tags:
+        - Customer Management
+      summary: Update customer preferences
+      parameters:
+        - $ref: '#/components/parameters/UserIdPath'
+        - $ref: '#/components/parameters/AcceptLanguageHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePreferencesRequest'
+      responses:
+        '200':
+          description: Preferences updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /customer/add-address:
+    post:
+      tags:
+        - Customer Management
+      summary: Add customer address
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguageHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddressRequest'
+      responses:
+        '200':
+          description: Address added successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Address'
+
+  # ==================== REGION MANAGEMENT ====================
+  /regions:
+    post:
+      tags:
+        - Location - Region
+      summary: Create new region
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguageHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddRegionRequest'
+      responses:
+        '200':
+          description: Region created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /regions/list:
+    post:
+      tags:
+        - Location - Region
+      summary: Get regions list with pagination
+      parameters:
+        - $ref: '#/components/parameters/XUserIdHeader'
+        - $ref: '#/components/parameters/XRoleHeader'
+        - $ref: '#/components/parameters/AcceptLanguageHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegionListRequest'
+      responses:
+        '200':
+          description: Regions retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Region'
+                      meta:
+                        type: object
+                        properties:
+                          total_count:
+                            type: integer
+
+  /regions/{id}:
+    put:
+      tags:
+        - Location - Region
+      summary: Update region
+      parameters:
+        - $ref: '#/components/parameters/RegionIdPath'
+        - $ref: '#/components/parameters/AcceptLanguageHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EditRegionRequest'
+      responses:
+        '200':
+          description: Region updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /regions/{id}/status:
+    put:
+      tags:
+        - Location - Region
+      summary: Change region status
+      parameters:
+        - $ref: '#/components/parameters/RegionIdPath'
+        - $ref: '#/components/parameters/AcceptLanguageHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeRegionStatusRequest'
+      responses:
+        '200':
+          description: Region status updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /regions/{id}/delete:
+    put:
+      tags:
+        - Location - Region
+      summary: Delete region
+      parameters:
+        - $ref: '#/components/parameters/RegionIdPath'
+        - $ref: '#/components/parameters/AcceptLanguageHeader'
+      responses:
+        '200':
+          description: Region deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  # ==================== GEOFENCE MANAGEMENT ====================
+  /geofences:
+    post:
+      tags:
+        - Location - Geofence
+      summary: Create new geofence
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguageHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddGeofenceRequest'
+      responses:
+        '200':
+          description: Geofence created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /geofences/list:
+    post:
+      tags:
+        - Location - Geofence
+      summary: Get geofences list with pagination
+      parameters:
+        - $ref: '#/components/parameters/XUserIdHeader'
+        - $ref: '#/components/parameters/XRoleHeader'
+        - $ref: '#/components/parameters/AcceptLanguageHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeofenceListRequest'
+      responses:
+        '200':
+          description: Geofences retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Geofence'
+                      meta:
+                        type: object
+                        properties:
+                          total_count:
+                            type: integer
+
+  /geofences/{id}:
+    get:
+      tags:
+        - Location - Geofence
+      summary: Get geofence details
+      parameters:
+        - $ref: '#/components/parameters/GeofenceIdPath'
+        - $ref: '#/components/parameters/AcceptLanguageHeader'
+      responses:
+        '200':
+          description: Geofence details retrieved
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Geofence'
+    
+    put:
+      tags:
+        - Location - Geofence
+      summary: Update geofence
+      parameters:
+        - $ref: '#/components/parameters/GeofenceIdPath'
+        - $ref: '#/components/parameters/AcceptLanguageHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EditGeofenceRequest'
+      responses:
+        '200':
+          description: Geofence updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /geofences/{id}/status:
+    put:
+      tags:
+        - Location - Geofence
+      summary: Change geofence status
+      parameters:
+        - $ref: '#/components/parameters/GeofenceIdPath'
+        - $ref: '#/components/parameters/AcceptLanguageHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeGeofenceStatusRequest'
+      responses:
+        '200':
+          description: Geofence status updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /geofences/{id}/delete:
+    put:
+      tags:
+        - Location - Geofence
+      summary: Delete geofence
+      parameters:
+        - $ref: '#/components/parameters/GeofenceIdPath'
+        - $ref: '#/components/parameters/AcceptLanguageHeader'
+      responses:
+        '200':
+          description: Geofence deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  # ==================== OUTLET MANAGEMENT ====================
+  /outlets:
+    post:
+      tags:
+        - Location - Outlet
+      summary: Create new outlet
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguageHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddOutletRequest'
+      responses:
+        '200':
+          description: Outlet created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /outlets/list:
+    post:
+      tags:
+        - Location - Outlet
+      summary: Get outlets list with pagination
+      parameters:
+        - $ref: '#/components/parameters/XUserIdHeader'
+        - $ref: '#/components/parameters/XRoleHeader'
+        - $ref: '#/components/parameters/AcceptLanguageHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OutletListRequest'
+      responses:
+        '200':
+          description: Outlets retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Outlet'
+                      meta:
+                        type: object
+                        properties:
+                          total_count:
+                            type: integer
+
+  /outlets/{id}:
+    put:
+      tags:
+        - Location - Outlet
+      summary: Update outlet
+      parameters:
+        - $ref: '#/components/parameters/OutletIdPath'
+        - $ref: '#/components/parameters/AcceptLanguageHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EditOutletRequest'
+      responses:
+        '200':
+          description: Outlet updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /outlets/{id}/status:
+    put:
+      tags:
+        - Location - Outlet
+      summary: Change outlet status
+      parameters:
+        - $ref: '#/components/parameters/OutletIdPath'
+        - $ref: '#/components/parameters/AcceptLanguageHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeOutletStatusRequest'
+      responses:
+        '200':
+          description: Outlet status updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /outlets/{id}/delete:
+    put:
+      tags:
+        - Location - Outlet
+      summary: Delete outlet
+      parameters:
+        - $ref: '#/components/parameters/OutletIdPath'
+        - $ref: '#/components/parameters/AcceptLanguageHeader'
+      responses:
+        '200':
+          description: Outlet deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+tags:
+  - name: System
+    description: Health check and system endpoints
+  - name: Config
+    description: Configuration and settings endpoints
+  - name: Authentication
+    description: Authentication endpoints (login, register)
+  - name: Customer Management
+    description: Customer profile and management endpoints
+  - name: Store Management
+    description: Merchant/Store management endpoints
+  - name: Location - Region
+    description: Region management endpoints
+  - name: Location - Geofence
+    description: Geofence management endpoints
+  - name: Location - Outlet
+    description: Outlet management endpoints
