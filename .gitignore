@@ -2,4 +2,10 @@ node_modules/
 *.swp
 *.vscode/
 .DS_Store
-EOF
+
+# Go
+merge-specs
+go.sum
+
+# Generated OpenAPI specs
+consolidated-openapi.yml
