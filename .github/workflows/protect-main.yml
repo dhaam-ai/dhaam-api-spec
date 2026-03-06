@@ -21,11 +21,12 @@ jobs:
         run: |
           PUSHER="${{ github.actor }}"
           echo "Push attempted by: $PUSHER"
-          if [ "$PUSHER" = "shashank" ] || [ "$PUSHER" = "abhinavdhaam" ]; then
-            echo "Authorized user: $PUSHER - push allowed."
+
+          if [[ "$PUSHER" == "shashank" || "$PUSHER" == "abhinavdhaam" ]]; then
+            echo "âœ… Authorized user: $PUSHER â€” push allowed."
             echo "authorized=true" >> $GITHUB_OUTPUT
           else
-            echo "Unauthorized user: $PUSHER - reverting push!"
+            echo "âŒ Unauthorized user: $PUSHER â€” reverting push!"
             echo "authorized=false" >> $GITHUB_OUTPUT
           fi
 
