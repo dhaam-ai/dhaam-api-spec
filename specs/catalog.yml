@@ -88,8 +88,9 @@ components:
             type: string
           example: {"en": "Beverages", "hi": "पेय पदार्थ"}
         owner_id:
-          type: string
-          example: "owner_123"
+          type: integer
+          format: int64
+          example: 12801
         type:
           type: string
           example: "standard"
@@ -167,7 +168,8 @@ components:
           additionalProperties:
             type: string
         owner_id:
-          type: string
+          type: integer
+          format: int64
         thumb_url:
           type: string
         image:
@@ -458,7 +460,8 @@ components:
         category_type:
           type: integer
         owner_id:
-          type: string
+          type: integer
+          format: int64
         description:
           type: string
         description_lang:
@@ -518,7 +521,8 @@ components:
         search:
           type: string
         owner_id:
-          type: string
+          type: integer
+          format: int64
         is_want_leaf_category:
           type: boolean
         filters:
@@ -530,7 +534,8 @@ components:
         category_name:
           type: string
         owner_id:
-          type: string
+          type: integer
+          format: int64
 
     ReorderRequest:
       type: object
@@ -584,7 +589,8 @@ components:
         entity_type:
           type: integer
         owner_id:
-          type: string
+          type: integer
+          format: int64
         thumb_url:
           type: string
         sequence:
@@ -833,7 +839,8 @@ components:
         search:
           type: string
         owner_id:
-          type: string
+          type: integer
+          format: int64
         entity_type:
           type: integer
         filters:
