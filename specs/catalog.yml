@@ -844,7 +844,7 @@ components:
         entity_type:
           type: integer
         filters:
-          type: object
+          type: object 
 
     MapWithCategoryRequest:
       type: object
