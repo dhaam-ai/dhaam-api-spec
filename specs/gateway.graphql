@@ -1,0 +1,836 @@
+schema {
+  query: Query
+}
+
+scalar JSON
+
+type Query {
+  health: HealthStatus!
+  homePage(input: HomePageInput!): HomePage!
+  config(input: ConfigInput!): Config!
+  store(
+    outletId: String!
+    storeId: String
+    tenantId: String
+    customerId: String
+    longitude: Float
+    latitude: Float
+    date: String
+    startTime: String
+    endTime: String
+    timezone: String
+    deliveryMode: Int
+  ): StoreResponse!
+  menu(menuInput: MenuInput!): MenuDetail!
+  promoMenu(input: PromoMenuInput!): [PromoMenuDetail!]!
+  itemDetail(itemId: String!, menuId: String, outletId: String, storeId: String, tenantId: String, latitude: Float, longitude: Float): ItemDetail!
+  itemUpsells(itemIds: [String!]!): [ItemUpsellResult!]!
+  searchPage(input: SearchInput!): SearchPageResult!
+  suggestions(input: SuggestionInput!): [String!]!
+  trendingSearches(input: TrendingSearchInput!): [TrendingSearchItem!]!
+  searchMenuItems(input: MenuSearchInput!): MenuSearchResult!
+  getFilters(tenantId: String!, displayLocation: String): [FilterGroup!]!
+  quickFilter(tenantId:String!): FilterSingleGroup!
+  sortby(tenantId:String!): [FilterItem!]!
+  checkoutTemplate(input: CheckoutTemplateInput!): ActiveCheckoutTemplate
+}
+
+type FilterGroup {
+  displayGroup: String!
+  filtersList:  [FilterItem!]!
+  isMultiSelect: Boolean! 
+}
+
+type FilterSingleGroup {
+  isMultiSelect: Boolean!
+  filtersList:  [FilterItem!]!
+}
+
+type FilterItem {
+  filterKey:   String!
+  displayName: String!
+  image:       String
+}
+
+input SearchInput {
+  query: String!
+  tenantId: String
+  customerId: String
+  latitude: String
+  longitude: String
+  type: String
+  page: Int
+  pageSize: Int
+  filters: [String!] 
+  userTrending: Boolean
+  itemType: String
+}
+input SuggestionInput {
+  query:    String!
+  tenantId: String
+}
+input TrendingSearchInput {
+  tenantId: String!
+  page:     Int
+  pageSize: Int
+}
+type TrendingSearchItem {
+  query: String!
+  count: Int!
+}
+type SearchPageResult {
+  restaurants: [SearchMerchant!]!
+  totalCount: Int!
+}
+
+type SearchMerchant {
+  id: String!
+  outletId: String!
+  name: String!
+  outletName: String!
+  description: String!
+  profileImageURL: String!
+  webBannerURLs: [String!]!
+  mobileBannerURLs: [String!]!
+  rating: Float!
+  totalReviews: Int!
+  deliveryTime: String!
+  distance: Float!
+  price: String!
+  isOpen: Boolean!
+  cuisines: [String!]!
+  promoText: String!        # "20% OFF"
+  promoTag: String!         # "Top Choice"
+  hasPromo: Boolean!        # true/false
+  isFav: Boolean!
+  openUntil: String!
+  minOrderValue: Float
+  maxOrderValue: Float
+  discount: String
+  dishes: [SearchDish!]!
+}
+type SearchDish {
+  id: String!
+  name: String!
+  description: String!
+  price: Float!
+  imageURL: String!
+  isVeg: Int!
+  isMin: Int!
+  isMax: Int!
+  inventorEnabled: Int!
+  entityType: Int!
+  menuId: String!
+  availableQty: Int!
+  isAvailableNow: Boolean!
+  hasDetails: Boolean!
+  discount: DiscountInfo
+  # Leaf-product ids of a deal (entityType 5) or variant (entityType 6); null
+  # otherwise. Look each id up in MenuSearchResult.subItems for the details.
+  subItemIds: [String!]
+}
+
+type DiscountInfo {
+  discountId: String!
+  discountType: Int!
+  discountValue: Float!
+  discountedPrice: Float!
+}
+
+input MenuSearchInput {
+  query:      String!
+  merchantId: String!
+  outletId:   String!
+  menuId:     String
+  tenantId:   String
+  page:       Int
+  pageSize:   Int
+}
+
+type MenuSearchResult {
+  dishes:     [SearchDish!]!
+  totalCount: Int!
+  # Flat product dictionary keyed by the ids in SearchDish.subItemIds,
+  # same shape as MenuDetail.subItems.
+  subItems:   JSON
+}
+
+type ItemUpsellResult {
+  itemId: String!
+  name: String!
+  plu: String
+  upsells: [Attached!]
+}
+
+type ItemDetail {
+  itemId: String!
+  itemName: String!
+  label: String
+  description: String
+  price: Float!
+  costPrice: Float
+  image: String
+  thumbUrl: String
+  quantity: Int
+  isVeg: Int
+  sequence: Int
+  minQty: Int
+  maxQty: Int
+  availableQty: Int
+  inventorEnabled: Int
+  lastRating: Int
+  preprationTime: Int
+  isDefault: Int
+  isRequired: Int
+  isActive: Int
+  isMultiSelect: Int
+  minOption: Int
+  maxOption: Int
+  minimumSelectionRequired: Int
+  customizeId: String
+  entityType: Int
+  entityTypeName: String
+  pricing: ItemExtended
+  products: [Attached!]
+  upsells: [Attached!]
+  modifierGroups: [Attached!]
+  modifiers: [Attached!]
+  bundles: [Attached!]
+  multiImage: [String!]
+  multiVideo: [String!]
+  itemTemplates: [ItemTemplates!]
+  discount: DiscountInfo
+}
+
+type ItemTemplates {
+  templateUUID: String
+  name: String
+  description: String
+  image: String
+  type: String
+  sequence: Int
+  isActive: Boolean
+  itemTemplateAttributes: [TemplateAttribute!]
+}
+
+type TemplateAttribute {
+  id: Int
+  attributeName: String
+  attributeValue: String
+  sequence: Int
+}
+
+type ItemExtended {
+  itemId: Int
+  menuId: Int
+  outletId: Int
+  regionId: Int @deprecated(reason: "Regions were replaced by outlets; use outletId. Always null.")
+  storeId: Int
+  prepTimeMinutes: Int
+  customName: String
+  customDescription: String
+  customSequence: Int
+  customImage: String
+  customThumbUrl: String
+  priority: Int
+  status: Int
+  price: Float
+  mrp: Float
+  costPrice: Float
+  isPricingEnabled: Boolean
+  isPricingDeleted: Boolean
+}
+
+type Attached {
+  id: String
+  name: String
+  description: String
+  isDefault: Int
+  price: Float
+  plu: String
+  image: String
+  isVeg: Int
+  inventorEnabled: Int
+  availableQty: Int
+  entityTypeName: String
+  entityType: Int
+  minOption: Int
+  maxOption: Int
+  isMin: Int
+  isMax: Int
+  isMultiSelect: Int
+  customizeId: String
+  isActive: Int
+  sequence: Int
+  products: [Attached!]
+  modifiers: [Attached!]
+  modifierGroups: [Attached!]
+  upsells: [Attached!]
+  variants: [Attached!]
+}
+
+input MenuInput {
+  menuId: String!
+  outletId: String!
+  businessCategoryId: String
+  storeId: String!
+  tenantId: String!
+  latitude: Float!
+  longitude: Float!
+  isWantItemHierarchy: Boolean
+}
+
+input PromoMenuInput {
+  outletId: String!
+  promoId: String!
+  isVeg: Int
+  latitude: Float
+  longitude: Float
+  storeId: String
+  tenantId: String
+}
+
+type HealthStatus {
+  status: String!
+  timestamp: String!
+  database: String!
+  cache: String
+  opensearch: String
+  service: String!
+}
+
+input HomePageInput {
+  tenantId: String
+  domain: String
+  latitude: String
+  longitude: String
+  geoDistance: String
+  servingRegions: [Int!]
+  deliveryMode: Int
+  date: String
+  currentTime: String
+  page: Int
+  pageSize: Int
+  businessCategoryId: String
+  customerId: String
+  onlyFavorites: Boolean
+  promoId: String
+  filterKeys: [String!]
+}
+
+type HomePage {
+  banners: [Banner!]!
+  categories: [Category!]!
+  merchants: [Merchant!]!
+  # Same merchant cards as merchants, narrowed to those that currently have a
+  # deal item or an active promo, each carrying its deals. Resolved lazily —
+  # costs nothing unless selected — and paginates independently of the
+  # homepage's own page/pageSize.
+  deals(page: Int, pageSize: Int): DealsResult!
+  promos: [Promo!]!
+  filters: [FilterGroup!]!
+  quickFilters: FilterSingleGroup!
+  orderReviewInfo: OrderInfo
+  outletReviewInfo: OrderInfo
+  hasOrderReview: Boolean
+  hasOutletReview: Boolean
+  favoriteStoresCount: Int
+  pagination: Pagination
+  existingQuotationId: String
+  filterError: String
+}
+
+type OrderInfo {
+  orderId: String!
+  orderIdInt: Int!
+  deliveryAddress: String!
+  storeId: String!
+  storeName: String!
+  outletId: String!
+  outletName: String!
+  logoUrl: String!
+  rating: Float!
+}
+
+type Banner {
+  id: Int!
+  name: String!
+  mobileImageUrl: String
+  webImageUrl: String
+  useRedirection: Boolean!
+  redirectStoreId: String
+  redirectStoreName: String
+  externalLink: String
+  useTextOnBanner: Boolean!
+  bannerText: String
+  promoSettings: BannerPromoSettings!
+  scheduleType: Int!
+  placementType: Int!
+  bannerOrder: Int!
+  outlets: [Outlet!]
+}
+
+type BannerPromoSettings {
+  overlayColor: String
+  overlayOpacity: Int
+  textAlignment: String
+  fontSize: String
+  fontColor: String
+}
+
+type Category {
+  id: String!
+  name: String!
+  thumbURL: String
+  sequence: Int
+  depth: Int
+  isGlobal: Boolean
+}
+
+type Merchant {
+  id: String!
+  name: String!
+  merchantId: String!
+  merchantName: String!
+  description: String
+  logoURL: String
+  profileImageUrl: String
+  address: String
+  latitude: Float
+  longitude: Float
+  distance: Float
+  deliveryTimeMinutes: Int
+  isActive: Boolean!
+  rating: Float
+  totalReviews: Int
+  webBannerUrls: [String!]!
+  mobileBannerUrls: [String!]!
+  isFav: Boolean!
+  minOrderValue: Float
+  maxOrderValue: Float
+  discount: String
+  outlets: [Outlet!]!
+  userTags: [String!]
+}
+
+type Outlet {
+  outletId: String!
+  outletName: String!
+  latitude: Float!
+  longitude: Float!
+  locationAddress: String!
+  distance: Float
+  isActive: Boolean!
+  operatingHours: [OutletSchedule!]!
+  isServeable: Boolean!
+}
+
+type PromoOutlet {
+  outletId: String!
+}
+
+type Promo {
+  id: String!
+  title: String
+  Code: String
+  description: String
+  image_url: String
+  scopeLevel: Int
+  promoType: Int
+  discountValue: Float
+  endAt: String
+  outlets: [PromoOutlet!]!
+}
+
+type Pagination {
+  currentPage: Int!
+  pageSize: Int!
+  totalCount: Int!
+  totalPages: Int!
+  hasNext: Boolean!
+  hasPrevious: Boolean!
+}
+
+type DealsResult {
+  merchants: [DealMerchant!]!
+  # Number of merchants that have deals, not merchants nearby.
+  totalCount: Int!
+  pagination: Pagination
+}
+
+# Same fields as Merchant, plus the deal payload. A merchant only appears here
+# if it has at least one active deal item or one active promo.
+type DealMerchant {
+  id: String!
+  name: String!
+  merchantId: String!
+  merchantName: String!
+  description: String
+  logoURL: String
+  profileImageUrl: String
+  address: String
+  latitude: Float
+  longitude: Float
+  distance: Float
+  deliveryTimeMinutes: Int
+  isActive: Boolean!
+  rating: Float
+  totalReviews: Int
+  webBannerUrls: [String!]!
+  mobileBannerUrls: [String!]!
+  isFav: Boolean!
+  outlets: [Outlet!]!
+  minOrderValue: Float
+  maxOrderValue: Float
+  discount: String
+
+  deals: [Deal!]!
+  dealCount: Int!
+  # Store-level promos are not repeated in deals — they are not items. They
+  # surface here, the same way they do on a search card.
+  promoText: String!
+  promoTag: String!
+  hasPromo: Boolean!
+}
+
+type Deal {
+  itemId: String!
+  itemName: String!
+  description: String
+  image: String
+  sequence: Int
+  price: Float!
+  # Only resolved for the merchants on the returned page.
+  discount: DiscountInfo
+  menuId: String!
+}
+
+input ConfigInput {
+  tenantId: String!
+  domain: String
+  # The page whose header is served (US235): 'MainPage' (the default), 'HomePage', 'custom', ...
+  pageKey: String
+  # A custom page's id (page_key 'custom'); omitted for the other pages.
+  pageId: String
+}
+
+type Config {
+  businessTypes: [BusinessType!]!
+  deliveryModes: [DeliveryMode!]!
+  rotationTiming: Int!
+  bannerLimit: Int!
+  generalSettings: JSON
+  currency: String
+  currencySymbol: String
+  decimalFormat: String
+  symbolPosition: String
+  tenantCountry: String!
+  welcomePop: WelcomePopup
+  cancellationReasonType: String
+  preDefinedCancellationReasons: [String!]
+  # Public Google reCAPTCHA v3 site key for grecaptcha.execute; null when the
+  # tenant has not configured reCAPTCHA. The secret key is never exposed.
+  recaptchaSiteKey: String
+  # Public reCAPTCHA keys for the Android and iOS apps; null when not set.
+  recaptchaAndroidKey: String
+  recaptchaIosKey: String
+  # Customer app theme settings (US263), from the tenant's settings.
+  theme: Theme!
+}
+
+
+type Theme {
+  footer: Footer!
+  header: Header!
+}
+
+# The display states each header tab offers; a tab the tenant turned off has every state false.
+type Header {
+  # The state the header starts in, from the page config: big, normal, small or hidden.
+  initialState: String!
+  # The header's background color from the page config (shown in Big mode); null when not set.
+  backgroundColor: String
+  food: HeaderTabStates!
+  retail: HeaderTabStates!
+  search: HeaderTabStates!
+  orders: HeaderTabStates!
+  profile: HeaderTabStates!
+}
+
+# Food and retail offer all four states; search, orders and profile only normal.
+type HeaderTabStates {
+  big: Boolean!
+  normal: Boolean!
+  small: Boolean!
+  hidden: Boolean!
+}
+
+
+type Footer {
+  food: Boolean!
+  retail: Boolean!
+  search: Boolean!
+  orders: Boolean!
+  profile: Boolean!
+  # The tabs that are on, in the tenant's sort order (default: food, retail, search, orders, profile).
+  tabs: [FooterTab!]!
+}
+
+type FooterTab {
+  type: String!
+  sortOrder: Int!
+}
+
+"""
+Tenant-wide promotional popup. Null when the tenant has none configured or has
+switched it off, so a non-null value always means "show this".
+"""
+type WelcomePopup {
+  image: String
+  mobile_image: String
+  redirect_url: String
+}
+
+type BusinessType {
+  id: String!
+  tenantId: Int
+  code: String!
+  label: String!
+  logo: String
+}
+
+type DeliveryMode {
+  id: Int!
+  code: String!
+  label: String!
+}
+
+type StoreResponse {
+  merchantId: String!
+  merchantName: String!
+  outletId: String!
+  outletName: String!
+  distance: Float!
+  rating: Float!
+  totalReviews: Int
+  description: String!
+  logoUrl: String!
+  name: String!
+  phone: String
+  countryCode: String
+  email: String
+  address: String!
+  locationAddress: String!
+  webBannerUrls: [String!]!
+  mobileBannerUrls: [String!]!
+  profileImageUrl: String
+  backgroundImageUrl: String
+  deliverySettings: DeliverySettings
+  isActive: Boolean!
+  operationalHours: [OutletSchedule!]!
+  menu: [MenuResponse!]!
+  outlets: [Outlet!]!
+  isFav: Boolean!
+  orderSettings: OrderSettings!
+  promos: [Promo!]!
+  catalogAndCartSetting: CatalogAndCartSetting
+  ratingBarColor: String
+  interfaceBackgroundColor: String
+  ratingNotation: String
+  slots: [SlotDayResponse!]
+}
+
+type SlotDayResponse {
+  date: String!
+  dayName: String!
+  slots: [SlotTime!]
+}
+
+type SlotTime {
+  startTime: String!
+  endTime: String!
+}
+
+type CatalogAndCartSetting {
+  vegetarianFilter: Boolean
+  showOpeningHours: Boolean
+  showOutOfStockItems: Boolean
+  multiProductCart: Boolean
+  multiQuantitySelection: Boolean
+}
+
+type OrderSettings {
+  prepTimeMinutes: Int
+  minOrderAmount: Float
+  maxOrderAmount: Float
+  showGdprEnabled: Boolean!
+  etaEnabled: Boolean!
+  minTipAmount: Float!
+  defaultTip: Float
+  deliveryAgentTip: Boolean!
+  merchantTip: Boolean!
+  tipValues: [Float!]!
+  allowManualTip: Boolean!
+  ratingsReviewsEnabled: Boolean!
+  chatEnabled: Boolean!
+  loyaltyProgramEnabled: Boolean!
+  giftCardEnabled: Boolean!
+  chatSupportEnabled: Boolean!
+  notificationEnabled: Boolean!
+  goldMembershipEnabled: Boolean!
+  subscriptionPlanEnabled: Boolean!
+  languageEnabled: Boolean!
+  callCustomerSupportEnabled: Boolean!
+  specialInstructions: String
+  redirectUrl: String
+  shortenAddressOnMapEnabled: Boolean!
+  cancellationReasonType: String
+  preDefinedCancellationReasons: [String!]
+  upsellSideOrderEnabled: Boolean!
+  scheduleEnabled: Boolean!
+}
+
+type DeliveryManagedItem {
+  deliveryManagedBy: Int!
+  is_default: Boolean!
+  deliverySettings: DeliverySettings
+}
+
+type DeliverySettings {
+  deliveryManagedBy: Int
+  deliveryTimeMinutes: Int
+  deliveryTaxID: String
+  deliveryChargeType: String
+  deliveryCharge: Float
+  deliveryTimingType: String
+  deliveryModes: [DeliveryModeEntry!]!
+}
+
+type DeliveryModeEntry {
+  type: Int!
+  name: String
+  enabled: Boolean!
+}
+
+type OutletSchedule {
+  dayOfWeek: Int!
+  openTime: String
+  closeTime: String
+}
+
+type MenuResponse {
+  menu_id: String!
+  name: String!
+  description: String!
+  image_url: String!
+  schedules: [MenuSchedule!]!
+  menuCategory: [MenuCategory!]!
+}
+
+type PromoMenuDetail {
+  menuId: String!
+  menuName: String!
+  items: [ItemDetail!]!
+}
+
+type MenuDetail {
+  parentIds: [Int!]!
+  categories: JSON!
+  subItems: JSON
+}
+
+type MenuSchedule {
+  dayOfWeek: Int
+  availableFrom: String
+  availableTo: String
+  title: String
+}
+
+type MenuCategory {
+  categoryId: Int!
+  categoryUUID: String!
+  categoryName: String!
+  categoryNameLang: String
+  description: String
+  descriptionLang: String
+  ownerId: Int
+  thumbUrl: String
+  image: String
+  isEnabled: Boolean!
+  hasProducts: Boolean
+  hasChildren: Boolean
+  depth: Int
+  sequence: Int
+  name: String!
+  image: String
+  thumbUrl: String
+  displayOrder: Int!
+  sub_categories: [MenuCategory!]
+  items: [MenuItem!]
+}
+
+type MenuItem {
+  itemId: Int!
+  name: String!
+  description: String
+  price: Float!
+  image: String
+  thumbUrl: String
+  quantity: Int
+  minQty: Int
+  maxQty: Int
+  isVeg: Int!
+  isFeatured: Boolean!
+  isAvailableNow: Boolean!
+  hasDetails: Boolean!
+  isActive: Int
+  discount: DiscountInfo
+  entityTypeName: String
+  entityType: Int
+}
+
+type CategoryHierarchy {
+  categoryId: Int!
+  categoryUUID: String!
+  categoryName: String!
+  categoryNameLang: String
+  description: String
+  descriptionLang: String
+  ownerId: Int
+  thumbUrl: String
+  image: String
+  isEnabled: Boolean!
+  hasProducts: Boolean
+  hasChildren: Boolean
+  depth: Int
+  sequence: Int
+  subCategories: [CategoryHierarchy!]
+}
+
+input CheckoutTemplateInput {
+  clientId: String!
+  storeId: String!
+}
+
+type ActiveCheckoutTemplate {
+  id: String!
+  name: String!
+  description: String
+  scope: Int!
+  isActive: Boolean!
+  fields: [CheckoutTemplateField!]!
+}
+
+type CheckoutTemplateField {
+  id: String!
+  fieldKey: String!
+  fieldLabel: String!
+  fieldType: String!
+  placeholder: String
+  isRequired: Boolean!
+  isEnabled: Boolean!
+  sortOrder: Int!
+  validationRules: String
+  options: String
+  defaultValue: String
+}

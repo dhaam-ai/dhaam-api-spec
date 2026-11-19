@@ -1,0 +1,1341 @@
+openapi: "3.0.1"
+info:
+  title: "Dhaam Storefront Gateway API"
+  version: "1.0.0"
+  description: |
+    Public storefront GraphQL API, narrowed to the operations the customer app sends. All calls go to one endpoint, POST /api/v1/storefront/graphql.
+
+    Auth: none.
+
+    Responses: GraphQL returns HTTP 200 even when an operation fails. Always check the errors array. Parse and validation errors return no data. searchPage returns 503 with Retry-After while it sheds load.
+
+    Pagination: the gateway caps pageSize at 50 (domain MaxPageSize). homePage and trendingSearches default to page 1 and pageSize 10 when not sent.
+
+    Rate limits: the gateway applies none of its own. Ordering: none; every operation can be called directly.
+
+    Examples use synthetic values only.
+  x-source-commit: "7e97045 (dh-gateway-api development)"
+  x-client-source-commit: "b9fa15e (dh-hyperlocal-customer-app-react live)"
+servers:
+  - url: "{{baseUrl}}"
+tags:
+  - name: "gateway-graphql"
+    description: "Storefront GraphQL operations sent by the customer app"
+paths:
+  "/api/v1/storefront/graphql":
+    post:
+      tags:
+        - "gateway-graphql"
+      operationId: "gateway_graphql"
+      summary: "Run a storefront GraphQL operation"
+      description: |
+        Runs one GraphQL operation against the storefront schema (specs/gateway.graphql, the full served SDL). Send JSON with query, optional operationName, and optional variables.
+
+        The examples are the operations the customer app sends. Operation text and variable names are copied from the app. Each example is one operation:
+
+        | Example | Root field(s) | App caller |
+        |---|---|---|
+                | getCheckoutTemplate | checkoutTemplate | app/checkout (fetchCheckoutTemplate) |
+                | getStorefrontConfig | config | configSlice (main config) |
+                | getWelcomePopup | config | configSlice (welcome popup, separate request) |
+                | homePage | homePage | homeService.fetchHomePageData |
+                | homePageFavoriteStores | homePage | homeService.fetchFavoriteStores (operation name is also HomePage) |
+                | store | store | storeSlice.fetchStoreDetails |
+                | storeSlots | store | storeSlice (slots for a date range) |
+                | menuContent | menu | storeSlice.fetchMenuContent |
+                | itemDetail | itemDetail | itemDetailSlice |
+                | dealItemDetail | itemDetail | storeSlice (deal item details, operation name GetItemDetail) |
+                | itemUpsells | itemUpsells | cartSlice and upsellSlice |
+                | searchPage | searchPage, suggestions | SearchSuggestions (results, sent directly from the browser) |
+                | searchSuggestions | suggestions | SearchSuggestions (sent directly from the browser) |
+                | trendingSearches | trendingSearches | SearchSuggestions (sent directly from the browser) |
+                | searchFilters | getFilters, quickFilter, sortby | SearchSuggestions (sent directly from the browser) |
+                | searchMenuItems | searchMenuItems | StoreSearchModal (operation name is also Menu) |
+                | promoMenu | promoMenu | stores/[id]/PromoItemsModal (query is inline in the component) |
+
+        Operations with no example are not sent by the app and are not documented here.
+
+        IDs (tenantId, customerId, storeId, outletId, merchantId, menuId) accept the numeric ID or the UUID.
+
+      security: []
+      x-todo: |
+        1. gateway.graphql is the full served SDL (the schemaContent string in app/router/graphql.go, 836 lines), copied as-is and not trimmed to the customer app. The served SDL declares MenuCategory.image and MenuCategory.thumbUrl twice. graph-gophers accepts this at runtime, but strict SDL tools (graphql-js buildSchema) reject it, so Apidog import may fail. Left unchanged because the file must match the code. The example check ran with assumeValidSDL.
+        2. api/graphql/schema.graphql in the gateway repo is embedded but not used at runtime and differs from the served schema (for example itemDetail and subItemIds). This spec follows the served schema.
+        3. storeSlots (operation StoreSlots) selects OrderSettings.isTimeRangeSlot, timeSlotDurationMinutes and noOfDays. The served schema has none of them, so the whole document fails validation and the response has errors and no data. Reconcile the app selection or the schema.
+        4. itemUpsells (ItemUpsells) selects itemUuid on ItemUpsellResult and uuid on upsells and products. The served schema has no itemUuid and Attached has no uuid, so the whole document fails validation. Reconcile.
+        5. itemUpsells: app/redux/slices/cartSlice.ts calls fetchItemUpsells with number[] item IDs, but itemIds is [String!]!. graphql-js rejects a JSON number for String. The gateway runtime behaviour was not tested. The example uses string IDs, which the schema accepts.
+        6. promoMenu (PromoMenu, inline in app/stores/[id]/PromoItemsModal.tsx) selects ItemDetail.itemUuid and ItemDetail.variants. The served schema has neither, so the whole document fails validation. Reconcile.
+      requestBody:
+        required: true
+        content:
+          "application/json":
+            schema:
+              "$ref": "#/components/schemas/GraphqlRequest"
+            examples:
+              getCheckoutTemplate:
+                summary: "getCheckoutTemplate: app/checkout (fetchCheckoutTemplate)"
+                value:
+                  query: |2
+                      query GetCheckoutTemplate($input: CheckoutTemplateInput!) {
+                        checkoutTemplate(input: $input) {
+                          id
+                          name
+                          description
+                          scope
+                          isActive
+                          fields {
+                            id
+                            fieldKey
+                            fieldLabel
+                            fieldType
+                            placeholder
+                            isRequired
+                            isEnabled
+                            sortOrder
+                            validationRules
+                            options
+                            defaultValue
+                          }
+                        }
+                      }
+                  variables:
+                    input:
+                      clientId: "00000000-0000-0000-0000-000000000000"
+                      storeId: "00000000-0000-0000-0000-000000000000"
+              getStorefrontConfig:
+                summary: "getStorefrontConfig: configSlice (main config)"
+                value:
+                  query: |2
+                      query GetConfig($input: ConfigInput!) {
+                        config(input: $input) {
+                         rotationTiming
+                         bannerLimit
+                          generalSettings
+                          businessTypes {
+                            id
+                            code
+                            label
+                          }
+                          deliveryModes {
+                            id
+                            code
+                            label
+                          }
+                          preDefinedCancellationReasons
+                        }
+                      }
+                  variables:
+                    input:
+                      tenantId: "{{tenantId}}"
+              getWelcomePopup:
+                summary: "getWelcomePopup: configSlice (welcome popup, separate request)"
+                value:
+                  query: |2
+                      query GetWelcomePopup($input: ConfigInput!) {
+                        config(input: $input) {
+                          welcomePop {
+                            image
+                            redirect_url
+                          }
+                        }
+                      }
+                  variables:
+                    input:
+                      tenantId: "{{tenantId}}"
+              homePage:
+                summary: "homePage: homeService.fetchHomePageData"
+                value:
+                  query: |2
+                      query HomePage($input: HomePageInput!) {
+                      homePage(input: $input) {
+                        banners {
+                          id
+                          name
+                          mobileImageUrl
+                          webImageUrl
+                          useRedirection
+                          redirectStoreId
+                          redirectStoreName
+                          externalLink
+                          useTextOnBanner
+                          bannerText
+                          promoSettings {
+                            overlayColor
+                            overlayOpacity
+                            textAlignment
+                            fontSize
+                            fontColor
+                          }
+                          scheduleType
+                          placementType
+                          bannerOrder
+                          outlets {
+                            outletId
+                            outletName
+                          }
+                        }
+
+                          categories {
+                            id
+                            name
+                            thumbURL
+                            sequence
+                            isGlobal
+                            depth
+                          }
+                          merchants {
+                            id
+                            name
+                            merchantId
+                            merchantName
+                            description
+                            profileImageUrl
+                            logoURL
+                            address
+                            latitude
+                            longitude
+                            deliveryTimeMinutes
+                            distance
+                            rating
+                            isFav
+                            isActive
+                            outlets {
+                              outletId
+                              outletName
+                              isActive
+                            }
+                          }
+                          promos {
+                              id
+                              title
+                              Code
+                              description
+                              image_url
+                              scopeLevel
+                              discountValue
+                              endAt
+                              promoType
+                          }
+
+                          filters {
+                            displayGroup
+                            filtersList {
+                              filterKey
+                              displayName
+                            }
+                            isMultiSelect
+                          }
+                          quickFilters {
+                            isMultiSelect
+                            filtersList {
+                              filterKey
+                              displayName
+                            }
+                          }
+
+                          filters {
+                            displayGroup
+                            filtersList {
+                              filterKey
+                              displayName
+                            }
+                            isMultiSelect
+                          }
+                          quickFilters {
+                            isMultiSelect
+                            filtersList {
+                              filterKey
+                              displayName
+                            }
+                          }
+
+                          pagination {
+                            currentPage
+                            pageSize
+                            totalCount
+                            totalPages
+                            hasNext
+                            hasPrevious
+                          }
+                          hasOrderReview
+                          hasOutletReview
+                          existingQuotationId
+                          orderReviewInfo {
+                            orderId
+                            deliveryAddress
+                            storeId
+                            storeName
+                            outletId
+                            outletName
+                            logoUrl
+                            rating
+                          }
+                          outletReviewInfo {
+                            orderId
+                            deliveryAddress
+                            storeId
+                            storeName
+                            outletId
+                            outletName
+                            logoUrl
+                            rating
+                          }
+                        }
+                      }
+                  variables:
+                    input:
+                      tenantId: "{{tenantId}}"
+                      latitude: "0"
+                      longitude: "0"
+                      deliveryMode: 1
+                      page: 1
+                      pageSize: 10
+              homePageFavoriteStores:
+                summary: "homePageFavoriteStores: homeService.fetchFavoriteStores (operation name is also HomePage)"
+                value:
+                  query: |2
+                      query HomePage($input: HomePageInput!) {
+                        homePage(input: $input) {
+                          merchants {
+                            rating
+                            id
+                            name
+                            merchantId
+                            merchantName
+                            description
+                            profileImageUrl
+                            logoURL
+                            address
+                            latitude
+                            longitude
+                            distance
+                            deliveryTimeMinutes
+                            isActive
+                            totalReviews
+                            isFav
+                             outlets {
+                                outletId
+                                outletName
+                                latitude
+                                longitude
+                                locationAddress
+                                distance
+                                isActive
+                            }
+                          }
+                        }
+                      }
+                  variables:
+                    input:
+                      tenantId: "{{tenantId}}"
+                      latitude: "0"
+                      longitude: "0"
+                      customerId: "00000000-0000-0000-0000-000000000000"
+                      onlyFavorites: true
+                      deliveryMode: 1
+              store:
+                summary: "store: storeSlice.fetchStoreDetails"
+                value:
+                  query: |2
+                      query Store($outletId: String!, $longitude: Float, $latitude: Float, $date: String, $storeId: String, $startTime: String, $endTime: String, $customerId: String, $deliveryMode: Int, $timezone: String) {
+                        store(outletId: $outletId, longitude: $longitude, latitude: $latitude, date: $date, storeId: $storeId, startTime: $startTime, endTime: $endTime, customerId: $customerId, deliveryMode: $deliveryMode, timezone: $timezone) {
+                            merchantId
+                            merchantName
+                            outletId
+                            outletName
+                            distance
+                            rating
+                            description
+                            logoUrl
+                            name
+                            address
+                            webBannerUrls
+                            mobileBannerUrls
+                            profileImageUrl
+                            totalReviews
+                            isFav
+                            isActive
+                           promos {
+                                id
+                              title
+                              Code
+                              description
+                              image_url
+                              scopeLevel
+                              discountValue
+                              endAt
+                              promoType
+                            }
+                            deliverySettings {
+                                deliveryManagedBy
+                                deliveryTimeMinutes
+                                deliveryTaxID
+                                deliveryChargeType
+                                deliveryCharge
+                                deliveryTimingType
+                                deliveryModes {
+                                    type
+                                    name
+                                    enabled
+                                }
+                            }
+                              orderSettings {
+                                 prepTimeMinutes
+                                 minOrderAmount
+                                 maxOrderAmount
+                                 upsellSideOrderEnabled
+                                 shortenAddressOnMapEnabled
+                                 minTipAmount
+                                 defaultTip
+                                 deliveryAgentTip
+                                 merchantTip
+                                 tipValues
+                                 allowManualTip
+                                 cancellationReasonType
+                                 preDefinedCancellationReasons
+                              }
+                            operationalHours {
+                                dayOfWeek
+                                openTime
+                                closeTime
+                            }
+                             outlets {
+                                outletId
+                                outletName
+                                latitude
+                                locationAddress
+                                longitude
+                                distance
+                                isActive
+                                operatingHours {
+                                    dayOfWeek
+                                    openTime
+                                    closeTime
+                                }
+                            }
+                            slots {
+                                date
+                                dayName
+                                slots {
+                                    startTime
+                                    endTime
+                                }
+                            }
+                            menu {
+                                menu_id
+                                name
+                                description
+                                image_url
+                                schedules {
+                                    dayOfWeek
+                                    availableFrom
+                                    availableTo
+                                    title
+                                }
+                            }
+
+                        }
+                    }
+                  variables:
+                    outletId: "00000000-0000-0000-0000-000000000000"
+                    latitude: 0.0
+                    longitude: 0.0
+                    date: "2026-01-01"
+                    storeId: "00000000-0000-0000-0000-000000000000"
+                    startTime: null
+                    endTime: null
+                    customerId: "00000000-0000-0000-0000-000000000000"
+                    deliveryMode: 1
+                    timezone: "UTC"
+              storeSlots:
+                summary: "storeSlots: storeSlice (slots for a date range) (fails served-schema validation, see x-todo)"
+                value:
+                  query: |2
+                      query StoreSlots($outletId: String!, $longitude: Float, $latitude: Float, $date: String, $storeId: String, $startTime: String, $endTime: String, $customerId: String, $deliveryMode: Int, $timezone: String) {
+                        store(outletId: $outletId, longitude: $longitude, latitude: $latitude, date: $date, storeId: $storeId, startTime: $startTime, endTime: $endTime, customerId: $customerId, deliveryMode: $deliveryMode, timezone: $timezone) {
+                            outletId
+                            outletName
+                            orderSettings {
+                                prepTimeMinutes
+                                minOrderAmount
+                                maxOrderAmount
+                                isTimeRangeSlot
+                                timeSlotDurationMinutes
+                                noOfDays
+                                minTipAmount
+                                defaultTip
+                                deliveryAgentTip
+                                merchantTip
+                                tipValues
+                                allowManualTip
+                                cancellationReasonType
+                                preDefinedCancellationReasons
+                            }
+                            operationalHours {
+                                dayOfWeek
+                                openTime
+                                closeTime
+                            }
+                            slots {
+                                date
+                                dayName
+                                slots {
+                                    startTime
+                                    endTime
+                                }
+                            }
+                        }
+                      }
+                  variables:
+                    outletId: "00000000-0000-0000-0000-000000000000"
+                    latitude: 0.0
+                    longitude: 0.0
+                    date: "2026-01-01"
+                    storeId: "00000000-0000-0000-0000-000000000000"
+                    customerId: "00000000-0000-0000-0000-000000000000"
+                    deliveryMode: 1
+                    timezone: "UTC"
+              menuContent:
+                summary: "menuContent: storeSlice.fetchMenuContent"
+                value:
+                  query: |2
+                      query Menu($menuId: String!, $outletId: String!, $storeId: String!, $tenantId: String!, $latitude: Float!, $longitude: Float!) {
+                        menu(
+                          menuInput: {
+                            longitude: $longitude
+                            latitude: $latitude
+                            tenantId: $tenantId
+                            storeId: $storeId
+                            outletId: $outletId
+                            menuId: $menuId
+                          }
+                        ) {
+                          parentIds
+                          categories
+                        }
+                      }
+                  variables:
+                    outletId: "00000000-0000-0000-0000-000000000000"
+                    menuId: "00000000-0000-0000-0000-000000000000"
+                    storeId: "00000000-0000-0000-0000-000000000000"
+                    tenantId: "{{tenantId}}"
+                    latitude: 0.0
+                    longitude: 0.0
+              itemDetail:
+                summary: "itemDetail: itemDetailSlice"
+                value:
+                  query: |2
+                      query ItemDetail($itemId: String!, $outletId: String, $menuId: String, $storeId: String, $tenantId: String, $latitude: Float, $longitude: Float) {
+                        itemDetail(
+                          itemId: $itemId
+                          outletId: $outletId
+                          menuId: $menuId
+                          storeId: $storeId
+                          tenantId: $tenantId
+                          latitude: $latitude
+                          longitude: $longitude
+                        ) {
+                          itemId
+                          itemName
+                          description
+                          price
+                          costPrice
+                          image
+                          thumbUrl
+                          isVeg
+                          sequence
+                          minQty
+                          maxQty
+                          lastRating
+                          preprationTime
+                          isDefault
+                          isRequired
+                          isActive
+                          isMultiSelect
+                          minOption
+                          quantity
+                          maxOption
+                          customizeId
+                          entityType
+                          entityTypeName
+                          inventorEnabled
+                          availableQty
+                          multiImage
+                          multiVideo
+                          discount {
+                          discountId
+                          discountType
+                          discountValue
+                          discountedPrice
+                          }
+
+                           itemTemplates {
+                                templateUUID
+                                name
+                                description
+                                image
+                                type
+                                sequence
+                                isActive
+                                itemTemplateAttributes {
+                                    id
+                                    attributeName
+                                    attributeValue
+                                    sequence
+                                }
+                            }
+                          products {
+                            id
+                            name
+                            description
+                            isDefault
+                            price
+                            image
+                            entityTypeName
+                            sequence
+                            isVeg
+                            inventorEnabled
+                            availableQty
+                            minOption
+                            maxOption
+                            isActive
+                            customizeId
+                            modifierGroups {
+                              id
+                              name
+                              description
+                              isDefault
+                              price
+                              minOption
+                              maxOption
+                              isMultiSelect
+                              image
+                              entityTypeName
+                              sequence
+                              isActive
+                              customizeId
+                              modifiers {
+                                id
+                                name
+                                description
+                                isDefault
+                                price
+                                image
+                                entityTypeName
+                                sequence
+                                isActive
+                                customizeId
+                                inventorEnabled
+                                availableQty
+                              }
+                            }
+                            upsells {
+                              id
+                              name
+                              description
+                              isDefault
+                              price
+                              image
+                              minOption
+                              maxOption
+                              entityTypeName
+                              isMultiSelect
+                              sequence
+                              isActive
+                              products {
+                                id
+                                name
+                                description
+                                isDefault
+                                price
+                                image
+                                entityTypeName
+                                sequence
+                                isVeg
+                                inventorEnabled
+                                availableQty
+                                minOption
+                                maxOption
+                                isActive
+                                customizeId
+                              }
+                            }
+                          }
+                          upsells {
+                            id
+                            name
+                            description
+                            isDefault
+                            price
+                            image
+                            minOption
+                            maxOption
+                            entityTypeName
+                            isMultiSelect
+                            sequence
+                            isActive
+                            products {
+                              id
+                              name
+                              description
+                              isDefault
+                              price
+                              image
+                              entityTypeName
+                              sequence
+                              isVeg
+                              inventorEnabled
+                              minOption
+                              maxOption
+                              isActive
+                              customizeId
+                            }
+                          }
+
+                          modifierGroups {
+                            id
+                            name
+                            description
+                            isDefault
+                            price
+                            minOption
+                            maxOption
+                            isMultiSelect
+                            image
+                            entityTypeName
+                            sequence
+                            isActive
+                            customizeId
+                            modifiers {
+                              id
+                              name
+                              description
+                              isDefault
+                              price
+                              image
+                              entityTypeName
+                              sequence
+                              isActive
+                              customizeId
+                              inventorEnabled
+                              availableQty
+                            }
+                          }
+
+                        }
+                      }
+                  variables:
+                    itemId: "00000000-0000-0000-0000-000000000000"
+                    outletId: "00000000-0000-0000-0000-000000000000"
+                    menuId: "00000000-0000-0000-0000-000000000000"
+                    storeId: "00000000-0000-0000-0000-000000000000"
+                    tenantId: "{{tenantId}}"
+                    latitude: 0.0
+                    longitude: 0.0
+              dealItemDetail:
+                summary: "dealItemDetail: storeSlice (deal item details, operation name GetItemDetail)"
+                value:
+                  query: |2
+                      query GetItemDetail($itemId: String!, $outletId: String, $menuId: String, $storeId: String, $tenantId: String, $latitude: Float, $longitude: Float) {
+                      itemDetail(
+                        itemId: $itemId
+                        outletId: $outletId
+                        menuId: $menuId
+                        storeId: $storeId
+                        tenantId: $tenantId
+                        latitude: $latitude
+                        longitude: $longitude
+                      ) {
+                        itemId
+                        itemName
+                        description
+                        price
+                        costPrice
+                        image
+                        thumbUrl
+                        quantity
+                        isVeg
+                        sequence
+                        minQty
+                        maxQty
+                        availableQty
+                        lastRating
+                        preprationTime
+                        isDefault
+                        isRequired
+                        isActive
+                        isMultiSelect
+                        minOption
+                        maxOption
+                        customizeId
+                        multiImage
+                        multiVideo
+                        discount {
+                          discountId
+                          discountType
+                          discountValue
+                          discountedPrice
+                        }
+                          upsells {
+                                  id
+                                  name
+                                  description
+                                  isDefault
+                                  price
+                                  plu
+                                  image
+                                  isVeg
+                                  inventorEnabled
+                                  entityTypeName
+                                  minOption
+                                  maxOption
+                                  isMultiSelect
+                                  sequence
+                                  isActive
+                                   products {
+                                    id
+                                    name
+                                    description
+                                    isDefault
+                                    price
+                                    plu
+                                    image
+                                    isVeg
+                                    inventorEnabled
+                                    entityTypeName
+                                    minOption
+                                    maxOption
+                                    sequence
+                                    isActive
+                                    customizeId
+                                  }
+                                }
+                         bundles {
+                          id
+                          name
+                          description
+                          isDefault
+                          price
+                          plu
+                          image
+                          isVeg
+                          inventorEnabled
+                          entityTypeName
+                          minOption
+                          maxOption
+                          isMultiSelect
+                          sequence
+                          isActive
+                          products {
+                            id
+                            name
+                            description
+                            isDefault
+                            price
+                            plu
+                            image
+                            isVeg
+                            inventorEnabled
+                            entityTypeName
+                            minOption
+                            maxOption
+                            sequence
+                            isActive
+                            customizeId
+                            modifierGroups {
+                              id
+                              name
+                              description
+                              isDefault
+                              price
+                              plu
+                              image
+                              isVeg
+                              inventorEnabled
+                              entityTypeName
+                              minOption
+                              maxOption
+                              sequence
+                              isMultiSelect
+                              isActive
+
+                               modifiers {
+                                id
+                                name
+                                description
+                                isDefault
+                                price
+                                plu
+                                image
+                                isVeg
+                                inventorEnabled
+                                entityTypeName
+                                minOption
+                                maxOption
+                                sequence
+                                isActive
+                                 modifierGroups {
+                                  id
+                                  name
+                                  description
+                                  isDefault
+                                  isActive
+                                  price
+                                  plu
+                                  image
+                                  isVeg
+                                  inventorEnabled
+                                  entityTypeName
+                                  minOption
+                                  maxOption
+                                  isMultiSelect
+                                  sequence
+                                   modifiers {
+                                    id
+                                    name
+                                    isActive
+                                    description
+                                    isDefault
+                                    price
+                                    plu
+                                    image
+                                    isVeg
+                                    inventorEnabled
+                                    entityTypeName
+                                    minOption
+                                    maxOption
+                                    sequence
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  variables:
+                    itemId: "00000000-0000-0000-0000-000000000000"
+                    outletId: "00000000-0000-0000-0000-000000000000"
+                    menuId: "00000000-0000-0000-0000-000000000000"
+                    storeId: "00000000-0000-0000-0000-000000000000"
+                    tenantId: "{{tenantId}}"
+                    latitude: 0.0
+                    longitude: 0.0
+              itemUpsells:
+                summary: "itemUpsells: cartSlice and upsellSlice (fails served-schema validation, see x-todo)"
+                value:
+                  query: |2
+                      query ItemUpsells($itemIds: [String!]!) {
+                        itemUpsells(itemIds: $itemIds) {
+                          itemId
+                          itemUuid
+                          name
+                          plu
+                          upsells {
+                            id
+                            uuid
+                            name
+                            description
+                            isDefault
+                            price
+                            plu
+                            image
+                            isVeg
+                            inventorEnabled
+                            entityTypeName
+                            minOption
+                            maxOption
+                            isMultiSelect
+                            isActive
+                            sequence
+                            products {
+                              id
+                              uuid
+                              name
+                              description
+                              isDefault
+                              price
+                              plu
+                              image
+                              isVeg
+                              inventorEnabled
+                              entityTypeName
+                              minOption
+                              maxOption
+                              isMultiSelect
+                              sequence
+                              isActive
+                              customizeId
+                            }
+                          }
+                        }
+                      }
+                  variables:
+                    itemIds:
+                      - "00000000-0000-0000-0000-000000000000"
+              searchPage:
+                summary: "searchPage: SearchSuggestions (results, sent directly from the browser)"
+                value:
+                  query: |2
+                      query SearchPage(
+                        $query: String!
+                        $tenantId: String!
+                        $customerId: String
+                        $latitude: String!
+                        $longitude: String!
+                        $page: Int
+                        $pageSize: Int
+                        $type: String
+                        $filters: [String!]
+                      ) {
+                        searchPage(
+                          input: {
+                            query: $query
+                            tenantId: $tenantId
+                            customerId: $customerId
+                            latitude: $latitude
+                            longitude: $longitude
+                            page: $page
+                            pageSize: $pageSize
+                            type: $type
+                            filters: $filters
+                          }
+                        ) {
+                          totalCount
+                          restaurants {
+                            id
+                            outletId
+                            name
+                            outletName
+                            description
+                            profileImageURL
+                            webBannerURLs
+                            mobileBannerURLs
+                            rating
+                            totalReviews
+                            deliveryTime
+                            distance
+                            price
+                            isOpen
+                            cuisines
+                            promoText
+                            promoTag
+                            hasPromo
+                            isFav
+                            openUntil
+                            dishes {
+                              id
+                              name
+                              description
+                              price
+                              imageURL
+                              isVeg
+                              isMin
+                              isMax
+                              inventorEnabled
+                              menuId
+                              isAvailableNow
+                              hasDetails
+                            }
+                          }
+                        }
+                        suggestions(input: { query: $query, tenantId: $tenantId })
+                      }
+                  variables:
+                    query: "pizza"
+                    tenantId: "{{tenantId}}"
+                    customerId: "00000000-0000-0000-0000-000000000000"
+                    latitude: "0"
+                    longitude: "0"
+                    page: 1
+                    pageSize: 20
+                    type: "dishes"
+                    filters: null
+              searchSuggestions:
+                summary: "searchSuggestions: SearchSuggestions (sent directly from the browser)"
+                value:
+                  query: |2
+                      query Suggestions($query: String!, $tenantId: String!) {
+                        suggestions(input: { query: $query, tenantId: $tenantId })
+                      }
+                  variables:
+                    query: "piz"
+                    tenantId: "{{tenantId}}"
+              trendingSearches:
+                summary: "trendingSearches: SearchSuggestions (sent directly from the browser)"
+                value:
+                  query: |2
+                      query TrendingSearches($tenantId: String!) {
+                        trendingSearches(input: { page: 1, pageSize: 10, tenantId: $tenantId }) {
+                          query
+                          count
+                        }
+                      }
+                  variables:
+                    tenantId: "{{tenantId}}"
+              searchFilters:
+                summary: "searchFilters: SearchSuggestions (sent directly from the browser)"
+                value:
+                  query: |2
+                      query SearchFilters($tenantId: String!) {
+                        getFilters(tenantId: $tenantId) {
+                          displayGroup
+                          isMultiSelect
+                          filtersList {
+                            filterKey
+                            displayName
+                          }
+                        }
+                        quickFilter(tenantId: $tenantId) {
+                          isMultiSelect
+                          filtersList {
+                            filterKey
+                            displayName
+                          }
+                        }
+                        sortby(tenantId: $tenantId) {
+                          filterKey
+                          displayName
+                        }
+                      }
+                  variables:
+                    tenantId: "{{tenantId}}"
+              searchMenuItems:
+                summary: "searchMenuItems: StoreSearchModal (operation name is also Menu)"
+                value:
+                  query: |2
+                      query Menu($query: String!, $merchantId: String!, $tenantId: String!, $outletId: String!) {
+                        searchMenuItems(input: { query: $query, merchantId: $merchantId, tenantId: $tenantId, outletId: $outletId }) {
+                            totalCount
+                            dishes {
+                                id
+                                name
+                                description
+                                price
+                                imageURL
+                                isVeg
+                                isMin
+                                isMax
+                                inventorEnabled
+                                menuId
+                                isAvailableNow
+                                hasDetails
+                            }
+                        }
+                    }
+                  variables:
+                    query: "margherita"
+                    merchantId: "00000000-0000-0000-0000-000000000000"
+                    tenantId: "{{tenantId}}"
+                    outletId: "00000000-0000-0000-0000-000000000000"
+              promoMenu:
+                summary: "promoMenu: stores/[id]/PromoItemsModal (query is inline in the component) (fails served-schema validation, see x-todo)"
+                value:
+                  query: |2
+                      query PromoMenu($input: PromoMenuInput!) {
+                        promoMenu(input: $input) {
+                          menuId
+                          menuName
+                          items {
+                            itemId
+                            itemUuid
+                            itemName
+                            price
+                            quantity
+                            minQty
+                            maxQty
+                            image
+                            thumbUrl
+                            isVeg
+                            upsells {
+                              id
+                              name
+                              price
+                            }
+                            variants {
+                              id
+                              name
+                              price
+                            }
+                            modifierGroups {
+                              id
+                              name
+                            }
+                            modifiers {
+                              id
+                              name
+                              price
+                            }
+                          }
+                        }
+                      }
+                  variables:
+                    input:
+                      outletId: "00000000-0000-0000-0000-000000000000"
+                      promoId: "00000000-0000-0000-0000-000000000000"
+      responses:
+        "200":
+          description: "GraphQL response. \"data\" holds the result and \"errors\" lists resolver or validation errors. An operation can return both."
+          headers:
+            X-Request-Id:
+              "$ref": "#/components/headers/XRequestId"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/GraphqlResponse"
+              examples:
+                validationError:
+                  summary: "Unknown field (no data)"
+                  value:
+                    errors:
+                      - message: "Cannot query field \"unknownField\" on type \"Query\"."
+                        locations:
+                          - line: 1
+                            column: 3
+                resolverError:
+                  summary: "Resolver error with partial data"
+                  value:
+                    data:
+                      store: null
+                    errors:
+                      - message: "forbidden: store does not match outlet"
+                        path:
+                          - "store"
+                internalError:
+                  summary: "Database or internal error, sanitized"
+                  value:
+                    data: null
+                    errors:
+                      - message: "Something went wrong. Please try again after some time."
+                        path:
+                          - "homePage"
+                        extensions:
+                          code: "INTERNAL_SERVER_ERROR"
+        "400":
+          description: "The request body is not valid JSON. The body is plain text, not a GraphQL response. The gateway returns it before any query runs."
+          headers:
+            X-Request-Id:
+              "$ref": "#/components/headers/XRequestId"
+          content:
+            "text/plain":
+              schema:
+                type: "string"
+              example: "invalid character 'x' looking for beginning of value"
+        "500":
+          description: "Unexpected server error (for example, a recovered panic). The body is the gateway's JSON error envelope. The exact message text is not fixed."
+          headers:
+            X-Request-Id:
+              "$ref": "#/components/headers/XRequestId"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/ErrorEnvelope"
+              example:
+                success: false
+                error: "Internal server error"
+          x-todo: "The 500 body text comes from the recovered error; the exact text is not fixed in code."
+        "503":
+          description: "Load shed (searchPage only). The search circuit breaker is open or the request was refused to protect the database and OpenSearch. The body is the GraphQL response with errors[].extensions.code SEARCH_BUSY. Retry after the Retry-After seconds."
+          headers:
+            X-Request-Id:
+              "$ref": "#/components/headers/XRequestId"
+            Retry-After:
+              description: "Seconds to wait before retrying (at least 1)."
+              schema:
+                type: "integer"
+                minimum: 1
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/GraphqlResponse"
+              example:
+                data: null
+                errors:
+                  - message: "Search is busy, please try again."
+                    path:
+                      - "searchPage"
+                    extensions:
+                      code: "SEARCH_BUSY"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: "http"
+      scheme: "bearer"
+      bearerFormat: "JWT"
+  headers:
+    XRequestId:
+      description: "Request ID, which is the trace ID. Generated by the gateway; a client-supplied value is not echoed."
+      schema:
+        type: "string"
+  schemas:
+    GraphqlRequest:
+      type: "object"
+      required:
+        - "query"
+      properties:
+        query:
+          type: "string"
+          minLength: 1
+          description: "The GraphQL document."
+        operationName:
+          type: "string"
+          nullable: true
+          description: "Which operation to run when the document has several."
+        variables:
+          type: "object"
+          additionalProperties: true
+          description: "Variable values keyed by name."
+    GraphqlResponse:
+      type: "object"
+      description: "Standard GraphQL response. \"data\" is absent or null when the document fails to parse or validate, or when the root field fails."
+      properties:
+        data:
+          type: "object"
+          nullable: true
+          additionalProperties: true
+        errors:
+          type: "array"
+          items:
+            "$ref": "#/components/schemas/GraphqlError"
+    GraphqlError:
+      type: "object"
+      required:
+        - "message"
+      properties:
+        message:
+          type: "string"
+          description: "Client-safe message. Database and connection errors are replaced with \"Something went wrong. Please try again after some time.\" and extensions.code INTERNAL_SERVER_ERROR."
+        locations:
+          type: "array"
+          items:
+            type: "object"
+            properties:
+              line:
+                type: "integer"
+              column:
+                type: "integer"
+        path:
+          type: "array"
+          items:
+            oneOf:
+              - type: "string"
+              - type: "integer"
+        extensions:
+          type: "object"
+          properties:
+            code:
+              type: "string"
+              description: "Known codes: INTERNAL_SERVER_ERROR (sanitized internal error) and SEARCH_BUSY (searchPage shed load). Other resolver errors carry no code."
+    ErrorEnvelope:
+      type: "object"
+      description: "JSON error envelope the gateway uses for non-GraphQL errors."
+      required:
+        - "success"
+        - "error"
+      properties:
+        success:
+          type: "boolean"
+          enum:
+            - false
+        error:
+          type: "string"

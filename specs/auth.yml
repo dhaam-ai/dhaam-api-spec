@@ -1,0 +1,568 @@
+openapi: 3.0.1
+info:
+  title: "DHAAM Auth Service API"
+  version: "1.0.0"
+  description: "Public auth endpoints used by the customer app and for merchant/admin sign-in. Every path is the full public path. All operations here are public (security is empty). Tokens from login, refresh and social callback are sent as Authorization Bearer to protected routes in other services. The customer app calls check-user before it starts OTP or password sign-in, and calls refresh when an access token expires. Rate limits: the social callback is limited per client IP (20 requests per 15 minutes, then blocked for one hour) and per tenant (100 requests per 15 minutes). Errors use the standard envelope with success false, error.type and error.message. Rate-limit responses (429) use their own shape."
+  x-source-commit: "e7b5f58 (dh-auth development)"
+servers:
+  - url: "{{baseUrl}}"
+tags:
+  - name: auth-check-user
+    description: "Account lookup before sign-in."
+  - name: auth-login
+    description: "Password sign-in and token refresh."
+  - name: auth-social-login
+    description: "Google, Facebook and Apple sign-in callback."
+paths:
+  /api/v1/auth/check-user:
+    post:
+      tags:
+        - auth-check-user
+      operationId: auth_checkUser
+      summary: "Check whether an identifier has an account"
+      description: "Public. Called by the customer app before OTP or password sign-in. Returns 200 with the exists flag. Phone identifiers are digits only, 4 to 14 characters."
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/AcceptLanguage"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CheckUserRequest"
+            example:
+              identifier: "5550100123"
+              identifier_type: "phone"
+              tenant_id: "3f2b8a1e-4c5d-4e6f-8a9b-0c1d2e3f4a5b"
+              role_id: "4"
+              country_code: "+1"
+              domain: "https://shop.example.com"
+      responses:
+        "200":
+          description: "Lookup result. exists is false when no account matches."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckUserResponse"
+        "400":
+          description: "Validation failure (invalid phone or email format, invalid tenant_id)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: "Internal error."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      x-todo:
+        - "Customer app sends country_code as the selected country code. Confirm the expected format (for example +1 or 1) with the backend; the backend stores and matches it as received."
+  /api/v1/auth/login:
+    post:
+      tags:
+        - auth-login
+      operationId: auth_login
+      summary: "Sign in with password (merchant and admin)"
+      description: "Public. Exchanges tenant_id, role, user_id and password for Cognito tokens. Use it to get a bearer token for admin setup calls. The Cognito username is derived from tenant_id, role and user_id, so all three must match the account. The customer app does not call this endpoint."
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+            example:
+              password: "{{password}}"
+              tenant_id: "{{tenantId}}"
+              role: "{{roleId}}"
+              user_id: "{{userId}}"
+      responses:
+        "200":
+          description: "Tokens and user summary."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthTokensResponse"
+        "400":
+          description: "Validation failure (password, tenant_id or role missing) or body not valid JSON."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: "Returned for wrong credentials and for Cognito errors as well. The error type is INTERNAL_ERROR with a generic message."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      x-todo:
+        - "Backend returns 500 INTERNAL_ERROR for wrong credentials because Cognito errors from MapAWSAuthError are plain errors, not AppErrors. A 401 is expected for NotAuthorizedException. Confirm and fix in the backend before QA relies on the status code."
+        - "user_id is optional in the request DTO, but the Cognito username needs it. Confirm which value admins use (internal numeric id or uuid). No client in dh-hyperlocal-customer-app-react or dh-manager-react found calls this endpoint."
+  /api/v1/auth/refresh:
+    post:
+      tags:
+        - auth-login
+      operationId: auth_refreshToken
+      summary: "Refresh access and id tokens"
+      description: "Public. Exchanges a refresh_token for new id_token and access_token. The customer app calls it from its token manager after a 401. refresh_token in the response can be empty when Cognito does not rotate it; keep the previous refresh token in that case."
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshRequest"
+            example:
+              refresh_token: "{{refreshToken}}"
+              user_id: "{{userId}}"
+              tenant_id: "{{tenantId}}"
+              role: 4
+      responses:
+        "200":
+          description: "New tokens and user summary."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthTokensResponse"
+        "400":
+          description: "Validation failure (refresh_token or role missing, or role not an integer)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: "Returned for an expired or revoked refresh token as well. The error type is INTERNAL_ERROR with a generic message."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      x-todo:
+        - "An expired or revoked refresh token returns 500 INTERNAL_ERROR (Cognito NotAuthorizedException is mapped to a plain error). Expected 401 TOKEN_EXPIRED or TOKEN_INVALID. The customer app treats any non-OK response as a failed refresh, so the status change will not break it. Confirm and fix in the backend."
+        - "tenant_id and user_id are not validated but are passed to the profile lookup. The customer app sends tenant UUID and user UUID. Confirm both are accepted as UUID strings."
+  /api/v1/auth/{provider}/callback:
+    post:
+      tags:
+        - auth-social-login
+      operationId: auth_socialCallback
+      summary: "Sign in or sign up with a social provider"
+      description: "Public. Verifies a provider token (Google or Apple id_token, Facebook access token) and returns DHAAM tokens. The provider is taken from the URL, not the body. The body tenant_id must match the tenant registered for the request domain. Rate limited per IP and per tenant (see info.description)."
+      security: []
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          description: "Social provider."
+          schema:
+            type: string
+            enum:
+              - google
+              - facebook
+              - apple
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SocialCallbackRequest"
+            example:
+              action: "callback"
+              tenant_id: "{{tenantId}}"
+              role: "4"
+              provider_token: "{{providerToken}}"
+              device_info:
+                device_id: "00000000-0000-4000-8000-000000000001"
+                device_name: "mobile"
+                device_type: "mobile"
+                os_version: "ios 17.0"
+                app_version: "1.0.0"
+                user_agent: "Example User Agent"
+      responses:
+        "200":
+          description: "Tokens and user summary. The client checks user.status to decide whether profile completion is needed."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthTokensResponse"
+        "400":
+          description: "Validation failure (missing fields, action not initiate or callback), provider in body does not match URL, or tenant mismatch (INVALID_INPUT)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: "Provider token rejected or could not be verified (UNAUTHORIZED)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Account is awaiting admin approval (ACCESS_DENIED), or the role is not permitted for social login (FORBIDDEN)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: "Rate limit exceeded. Retry-After header gives the wait in seconds. Body uses the rate-limit shape, not the standard envelope."
+          headers:
+            Retry-After:
+              description: "Seconds to wait before retrying."
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RateLimitError"
+        "500":
+          description: "Internal error (INTERNAL_ERROR)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: "Upstream dependency unavailable (SERVICE_UNAVAILABLE)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      x-todo:
+        - "The customer app fallback (FacebookLoginButton, used when the Facebook SDK is not loaded) navigates the browser to GET /api/v1/auth/facebook/callback with query parameters. The backend registers POST only, so that request gets 405. Confirm whether the fallback is still used; if so, add a GET handler or change the app."
+        - "The customer app sets the Apple redirect URI to /api/v1/auth/apple/callback. The backend accepts a JSON POST only. The app's sign-in path sends JSON through appleLoginInitiate, so this may only be the Apple console setting. Confirm the Apple flow mode (JS SDK or redirect/form_post)."
+        - "The customer app sends device_info.device_type as mobile, tablet or desktop. The backend DTO comment lists ios, android, web or desktop, and the field is not validated. Confirm the accepted values."
+        - "action accepts initiate or callback. The customer app always sends callback. The callback handler does not branch on action in verify.go; confirm what initiate is expected to do, or remove it from the enum."
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    AcceptLanguage:
+      name: Accept-Language
+      in: header
+      required: false
+      description: "Response language for messages. Any value other than es returns en."
+      schema:
+        type: string
+        enum:
+          - en
+          - es
+        default: en
+  schemas:
+    ErrorInfo:
+      type: object
+      required:
+        - type
+        - message
+      properties:
+        type:
+          type: string
+          example: "INVALID_INPUT"
+        message:
+          type: string
+          example: "invalid phone number format"
+        details:
+          description: "Optional. Shape depends on the error type."
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - error
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          $ref: "#/components/schemas/ErrorInfo"
+        meta:
+          type: object
+          additionalProperties: true
+    RateLimitError:
+      type: object
+      required:
+        - error
+        - message
+        - retry_after
+      properties:
+        error:
+          type: string
+          enum:
+            - rate_limit_exceeded
+        message:
+          type: string
+          example: "Too many requests. Please try again later."
+        retry_after:
+          type: integer
+          example: 60
+    CheckUserRequest:
+      type: object
+      required:
+        - identifier
+        - identifier_type
+        - domain
+      properties:
+        identifier:
+          type: string
+          description: "Phone digits only (4 to 14) or an email address (up to 300 characters)."
+          example: "5550100123"
+        identifier_type:
+          type: string
+          enum:
+            - email
+            - phone
+        country_code:
+          type: string
+          description: "Country code for phone lookups."
+          example: "+1"
+        tenant_id:
+          type: string
+          format: uuid
+          description: "Tenant UUID. Optional here, but the lookup needs a tenant."
+        domain:
+          type: string
+          description: "Site URL or hostname. The server reduces it to the hostname."
+          example: "https://shop.example.com"
+        role_id:
+          type: string
+          description: "Role id as a string. Accepted but not used by the lookup."
+          example: "4"
+        user_id:
+          type: string
+          description: "Accepted but not used by the lookup."
+    UserExistsRole:
+      type: object
+      properties:
+        role_id:
+          type: integer
+          format: int64
+        role_name:
+          type: string
+        id:
+          type: string
+          format: uuid
+        status:
+          type: integer
+        user_id:
+          type: integer
+          format: int64
+        verification_status:
+          type: integer
+    CheckUserData:
+      type: object
+      required:
+        - exists
+      properties:
+        exists:
+          type: boolean
+        roles:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserExistsRole"
+        is_social_only:
+          type: boolean
+        social_providers:
+          type: array
+          items:
+            type: string
+        message:
+          type: string
+    CheckUserResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: "#/components/schemas/CheckUserData"
+        meta:
+          type: object
+          additionalProperties: true
+    LoginRequest:
+      type: object
+      required:
+        - password
+        - tenant_id
+        - role
+      properties:
+        password:
+          type: string
+          description: "Account password. Never log it."
+        tenant_id:
+          type: string
+          description: "Tenant identifier used in the Cognito username."
+        role:
+          type: string
+          description: "Role id as a string."
+        user_id:
+          type: string
+          description: "User id used in the Cognito username. Required in practice."
+    RefreshRequest:
+      type: object
+      required:
+        - refresh_token
+        - role
+      properties:
+        refresh_token:
+          type: string
+          description: "Refresh token from a previous login or refresh."
+        user_id:
+          type: string
+          description: "User UUID as the customer app sends it."
+        tenant_id:
+          type: string
+          description: "Tenant UUID. Used for the profile lookup."
+        role:
+          type: integer
+          format: int64
+          example: 4
+    DeviceInfo:
+      type: object
+      properties:
+        device_id:
+          type: string
+          example: "00000000-0000-4000-8000-000000000001"
+        device_name:
+          type: string
+          example: "mobile"
+        device_type:
+          type: string
+          description: "Device class. The customer app sends mobile, tablet or desktop."
+          example: "mobile"
+        os_version:
+          type: string
+          example: "ios 17.0"
+        app_version:
+          type: string
+          example: "1.0.0"
+        device_token:
+          type: string
+          description: "Optional push token."
+        ip_address:
+          type: string
+          description: "Ignored for social callback. The server uses the request's real IP."
+        user_agent:
+          type: string
+          example: "Example User Agent"
+    SocialCallbackRequest:
+      type: object
+      required:
+        - action
+        - tenant_id
+        - role
+        - provider_token
+        - device_info
+      properties:
+        action:
+          type: string
+          enum:
+            - initiate
+            - callback
+          example: "callback"
+        tenant_id:
+          type: string
+          description: "Tenant UUID. Must match the tenant registered for the request domain."
+        role:
+          type: string
+          description: "Role id as a string."
+          example: "4"
+        provider_token:
+          type: string
+          description: "Google or Apple id_token, or Facebook access token."
+        code:
+          type: string
+          description: "Optional authorization code, if the provider flow returns one."
+        state:
+          type: string
+          description: "Optional state value."
+        frontend_redirect_url:
+          type: string
+          description: "Optional. Returned in the response."
+        full_name:
+          type: string
+          maxLength: 255
+          description: "Apple sends the name only on the first authorization. Forward it then."
+        nonce:
+          type: string
+          maxLength: 255
+          description: "Nonce used in the provider authorization request."
+        device_info:
+          $ref: "#/components/schemas/DeviceInfo"
+    AuthUser:
+      type: object
+      properties:
+        name:
+          type: string
+        user_id:
+          type: integer
+          format: int64
+        profile_picture:
+          type: string
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        status:
+          type: integer
+        verification_status:
+          type: integer
+        role:
+          type: integer
+          format: int64
+        is_new_user:
+          type: boolean
+        phone:
+          type: string
+        country_code:
+          type: string
+        is_phone_num:
+          type: boolean
+        username:
+          type: string
+          description: "Cognito username. Internal, do not display."
+        is_verified:
+          type: boolean
+        is_phone_verified:
+          type: boolean
+        provider:
+          type: string
+        user_name:
+          type: string
+        is_active:
+          type: boolean
+    AuthTokens:
+      type: object
+      properties:
+        id_token:
+          type: string
+          description: "JWT. Send as Authorization Bearer."
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+          description: "Can be empty when Cognito does not rotate it."
+        expires_in:
+          type: integer
+          format: int32
+          description: "Seconds until the id and access tokens expire."
+        frontend_redirect_url:
+          type: string
+        user:
+          $ref: "#/components/schemas/AuthUser"
+    AuthTokensResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: "#/components/schemas/AuthTokens"
+        meta:
+          type: object
+          additionalProperties: true

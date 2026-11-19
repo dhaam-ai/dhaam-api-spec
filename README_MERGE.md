@@ -14,9 +14,8 @@ This tool merges separate OpenAPI YAML specification files into a single consoli
 
 - Go 1.21 or higher
 - The `specs/` directory containing your individual YAML files:
-  - `catalog.yml`
-  - `order.yml`
-  - `user_profile.yml`
+  - `auth.yml`, `user_profile.yml`, `profile.yml`, `catalog.yml`, `menu.yml`,
+    `order.yml`, `gateway.yml` (the list is in `merge_specs.go`; missing files are skipped)
 
 ## Installation
 
@@ -37,7 +36,7 @@ go run merge_specs.go
 This will:
 1. Read all YAML files from the `specs/` directory
 2. Merge them into a consolidated specification
-3. Output the result to `consolidated-openapi.yml`
+3. Output the result to `specs/openapi.yml`
 
 ### Build and run as executable
 
@@ -59,16 +58,14 @@ The merger performs the following operations:
    - `Order` → `Order_Order`
    - `UserDetails` → `UserProfile_UserDetails`
 3. **Updates all internal references** (`$ref`) to use the new prefixed names
-4. **Combines paths** with service-specific URL prefixes:
-   - `/category` → `/catalog/v1/category`
-   - `/quote` → `/order/v1/quote`
-   - `/health` → `/profile/v1/health`
+4. **Combines paths** unchanged. Each file's paths are already full public paths, such as
+   `/api/v1/orders/quote`. A path defined by two files is a merge error.
 5. **Merges tags** with service name prefixes
 6. **Outputs a single consolidated YAML file**
 
 ## Output
 
-The script generates `consolidated-openapi.yml` containing:
+The script generates `specs/openapi.yml` containing:
 - All schemas from all services (with prefixes)
 - All API endpoints with proper paths
 - Combined tags and parameters
@@ -86,7 +83,7 @@ The script generates `consolidated-openapi.yml` containing:
 📄 Processing UserProfile service from user_profile.yml...
 ✅ Merged UserProfile service
 
-💾 Writing consolidated spec to consolidated-openapi.yml...
+💾 Writing consolidated spec to specs/openapi.yml...
 
 ============================================================
 ✨ Merge completed successfully!
@@ -97,19 +94,19 @@ The script generates `consolidated-openapi.yml` containing:
    - Paths: 45
    - Tags: 12
 
-📁 Output file: consolidated-openapi.yml
+📁 Output file: specs/openapi.yml
 ============================================================
 ```
 
 ## Customization
 
-To modify which services are merged or change the URL prefixes, edit the `services` array in `merge_specs.go`:
+To modify which services are merged, edit the `services` list in `merge_specs.go`:
 
 ```go
-services := []ServiceConfig{
-    {File: "catalog.yml", Name: "Catalog", Prefix: "catalog"},
-    {File: "order.yml", Name: "Order", Prefix: "order"},
-    {File: "user_profile.yml", Name: "UserProfile", Prefix: "profile"},
+var services = []ServiceConfig{
+    {File: "auth.yml", Name: "Auth"},
+    {File: "catalog.yml", Name: "Catalog"},
+    // ...one entry per file in specs/
 }
 ```
 

@@ -30,7 +30,7 @@ go build -o merge-specs merge_specs.go
 
 ### 3. Check Output
 
-Your consolidated specification will be at: `consolidated-openapi.yml`
+Your consolidated specification will be at: `specs/openapi.yml`
 
 ---
 
@@ -38,9 +38,16 @@ Your consolidated specification will be at: `consolidated-openapi.yml`
 
 | Source File | Service Name | URL Prefix | Schemas Count |
 |------------|--------------|------------|---------------|
-| `specs/catalog.yml` | Catalog | `/catalog/v1` | ~40 |
-| `specs/order.yml` | Order | `/order/v1` | ~15 |
-| `specs/user_profile.yml` | UserProfile | `/profile/v1` | ~30 |
+| `specs/auth.yml` | Auth | full public paths under `/api/v1/auth` | per file |
+| `specs/user_profile.yml` | UserProfile | full public paths under `/api/v1/users` | per file |
+| `specs/profile.yml` | Profile | full public paths under `/api/v1/profile` | per file |
+| `specs/catalog.yml` | Catalog | full public paths under `/api/v1/catalog` | per file |
+| `specs/menu.yml` | Menu | full public paths under `/api/v1/catalog/menu` | per file |
+| `specs/order.yml` | Order | full public paths under `/api/v1/orders` | per file |
+| `specs/gateway.yml` | Gateway | full public path `/api/v1/storefront/graphql` | per file |
+
+Paths in each file are already full public paths, so the merge copies them unchanged. A path that
+two files define is a merge error. Missing files are skipped with a warning.
 
 **Total**: 88+ schemas, 67+ endpoints, 13+ parameters, 14+ tags
 
@@ -59,16 +66,8 @@ Schemas are prefixed with their service name:
 
 ## Path Transformation
 
-Paths are prefixed with service paths:
-
-| Original | Consolidated |
-|----------|--------------|
-| `/category` | `/catalog/v1/category` |
-| `/item` | `/catalog/v1/item` |
-| `/quote` | `/order/v1/quote` |
-| `/create` | `/order/v1/create` |
-| `/health` | `/profile/v1/health` |
-| `/tenant/register` | `/profile/v1/tenant/register` |
+Paths are not rewritten. Each per-service file already uses its full public path, for example
+`/api/v1/catalog/item/list` in `specs/catalog.yml`, so the merged file uses the same paths.
 
 ---
 
@@ -115,7 +114,7 @@ go mod download gopkg.in/yaml.v3
 npm install -g @apidevtools/swagger-cli
 
 # Validate
-swagger-cli validate consolidated-openapi.yml
+swagger-cli validate specs/openapi.yml
 ```
 
 ---
@@ -125,7 +124,7 @@ swagger-cli validate consolidated-openapi.yml
 ### With Swagger UI (Docker)
 ```bash
 docker run -p 8080:8080 \
-  -e SWAGGER_JSON=/app/consolidated-openapi.yml \
+  -e SWAGGER_JSON=/app/specs/openapi.yml \
   -v $(pwd):/app \
   swaggerapi/swagger-ui
 ```
@@ -139,13 +138,13 @@ npm install -g @openapitools/openapi-generator-cli
 
 # Generate TypeScript client
 openapi-generator-cli generate \
-  -i consolidated-openapi.yml \
+  -i specs/openapi.yml \
   -g typescript-axios \
   -o ./generated/typescript-client
 
 # Generate Go client
 openapi-generator-cli generate \
-  -i consolidated-openapi.yml \
+  -i specs/openapi.yml \
   -g go \
   -o ./generated/go-client
 ```
@@ -153,7 +152,7 @@ openapi-generator-cli generate \
 ### Import into Postman
 1. Open Postman
 2. Click "Import"
-3. Select `consolidated-openapi.yml`
+3. Select `specs/openapi.yml`
 4. All endpoints will be available in a new collection
 
 ---
