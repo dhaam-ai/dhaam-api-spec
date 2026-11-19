@@ -37,7 +37,7 @@ paths:
         - name: id
           in: path
           required: true
-          description: Numeric customer user id.
+          description: 'Customer user id: the numeric `user.id` from the login response.'
           schema:
             type: integer
             format: int64
@@ -291,7 +291,7 @@ paths:
         - name: id
           in: path
           required: true
-          description: Address id.
+          description: 'Address id: the numeric `id` of the address in the address list.'
           schema:
             type: integer
             format: int64
@@ -337,7 +337,7 @@ paths:
         - name: id
           in: path
           required: true
-          description: Address id.
+          description: Address id of the address deleted a moment ago (same id as the delete call).
           schema:
             type: integer
             format: int64
@@ -385,7 +385,7 @@ paths:
         - name: identifier_type
           in: path
           required: true
-          description: Contact type to change.
+          description: 'What to change: email or phone.'
           schema:
             type: string
             enum:
@@ -445,7 +445,7 @@ paths:
         - name: identifier_type
           in: path
           required: true
-          description: Contact type to verify.
+          description: 'What to verify: email or phone (the same as the change call).'
           schema:
             type: string
             enum:
@@ -580,7 +580,7 @@ paths:
         - name: otptype
           in: path
           required: true
-          description: OTP purpose. Other OTP types the route accepts (enable_2fa, link social account) are not documented here.
+          description: 'Which code to verify; use the same value as `type` in the initiate call: signup = new account, login = sign in with a code, password_change = reset the password.'
           schema:
             type: string
             enum:
@@ -979,11 +979,11 @@ paths:
         - name: id
           in: path
           required: true
-          description: Outlet UUID (outlet_uuid).
+          description: Outlet UUID (`outlet_uuid`), returned when the store is registered.
           schema:
             type: string
             format: uuid
-            example: 00000000-0000-4000-8000-000000000010
+            example: '{{outletId}}'
         - name: store_uuid
           in: query
           required: false

@@ -96,11 +96,11 @@ paths:
         - name: id
           in: path
           required: true
-          description: Outlet UUID (outlet_uuid).
+          description: Outlet UUID (`outlet_uuid`), returned when the store is registered.
           schema:
             type: string
             format: uuid
-            example: 00000000-0000-4000-8000-000000000010
+            example: '{{outletId}}'
         - name: lang
           in: query
           required: false

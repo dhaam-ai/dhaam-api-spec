@@ -36,10 +36,11 @@ components:
       name: id
       in: path
       required: true
-      description: Item UUID.
+      description: Item UUID (`item_uuid`), returned by the item create call.
       schema:
         type: string
         format: uuid
+        example: '{{itemId}}'
     ItemMenuIdQuery:
       name: menu_id
       in: query

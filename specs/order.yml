@@ -70,10 +70,10 @@ components:
       name: id
       in: path
       required: true
-      description: "Order id. x-todo: confirm whether the numeric order_id and the order UUID are both accepted by GetOrderById."
+      description: 'Order id: the order UUID (`order.id` in the create response) or the order number (`order.order_id`). Both work.'
       schema:
         type: string
-        example: "{{orderId}}"
+        example: '{{orderId}}'
     CustomerQuery:
       name: customer_id
       in: query
@@ -440,11 +440,10 @@ components:
               additionalProperties: true
     OrderStatusUpdateRequest:
       type: object
-      description: |
-        Used here for the customer cancel (status 9, CANCELLED).
-        For a customer: `metadata.reason` is required and must be non-empty; cash-on-delivery orders cannot be cancelled by the customer;
-        cancellation is refused once the order has passed DISPATCHED (status 7).
-        Merchant and admin status changes use the same endpoint but are not documented here.
+      description: |-
+        Status change. `status` is the target status: 1 = New, 2 = Accepted, 3 = Assigned, 4 = Processed, 5 = Order ready, 6 = Picked up, 7 = Dispatched, 8 = Delivered, 9 = Cancelled.
+        Store and staff tokens move the order forward (2, 4, 5, 7, 8; 6 for pickup) or cancel it (9). Customer tokens send only 9.
+        `metadata.reason` is required for 9. `metadata.prep_time` (minutes) is optional on 2.
       required: [status]
       properties:
         status:
@@ -452,9 +451,16 @@ components:
           format: int64
           minimum: 1
           maximum: 10
-          description: 'Target status. A customer can only cancel: send 9 (Cancelled). Order status code: 1 = New, 2 = Accepted, 3 = Assigned, 4 = Processed, 5 = Order ready, 6 = Pickup, 7 = Dispatched, 8 = Delivered, 9 = Cancelled, 10 = Deleted, 11 = Pickup started.'
-          example: 9
+          description: 'Target status: 1 = New, 2 = Accepted, 3 = Assigned, 4 = Processed, 5 = Order ready, 6 = Picked up, 7 = Dispatched, 8 = Delivered, 9 = Cancelled. Store/staff: 2, 4, 5, 7, 8 in that order (6 for pickup orders, 3 when a driver is assigned), or 9 to reject. Customer: 9 only.'
+          example: 2
           enum:
+            - 2
+            - 3
+            - 4
+            - 5
+            - 6
+            - 7
+            - 8
             - 9
         order_id:
           type: string
@@ -1490,10 +1496,20 @@ paths:
     post:
       tags: [orders-order]
       operationId: orders_updateOrderStatus
-      summary: Cancel an order (customer)
-      description: |
-        Customer use: send `status: 9` (CANCELLED) with `metadata.reason`. Other statuses are merchant or admin changes and are not documented here.
-        Customer rules: reason required; cash-on-delivery orders cannot be cancelled by the customer; cancellation is refused after DISPATCHED (status 7).
+      summary: Update order status (store moves stages to Delivered; customer cancels)
+      description: |-
+        Moves an order to a new status. The same call serves the store and the customer; the token's role decides who is acting.
+
+        **Store (merchant role "2", outlet user "101", or staff)** moves the order through its stages, one call per stage:
+        1 New → 2 Accepted → 4 Processed → 5 Order ready → 7 Dispatched → 8 Delivered.
+        - On accept (2) the store may send `metadata.prep_time` (minutes).
+        - 3 Assigned is set when a driver is assigned; 6 Picked up is for orders the customer collects (pickup): 5 → 6 → 8.
+        - To reject or cancel, send 9 with `metadata.reason`.
+        - An order that is Delivered (8) or Cancelled (9) is final.
+
+        **Customer (role "4")** only cancels: send 9 with `metadata.reason`, on their own order. A customer cannot cancel a cash-on-delivery order (the store cancels it), and cannot cancel once the order is dispatched (7).
+
+        The `{id}` is the order's UUID (`order.id` in the create response) or its number (`order.order_id`).
       security:
         - bearerAuth: []
       parameters:
@@ -1504,10 +1520,46 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/OrderStatusUpdateRequest'
-            example:
-              status: 9
-              metadata:
-                reason: "Changed my mind"
+            examples:
+              customer_cancel:
+                summary: 'Customer: cancel own card or wallet order (9) with a reason'
+                value:
+                  metadata:
+                    reason: Changed my mind
+                    refund_method: Source
+                  status: 9
+              store_1_accept:
+                summary: 'Store: accept (2), with prep time in minutes'
+                value:
+                  metadata:
+                    prep_time: 20
+                  status: 2
+              store_2_processed:
+                summary: 'Store: preparing (4)'
+                value:
+                  status: 4
+              store_3_ready:
+                summary: 'Store: order ready (5)'
+                value:
+                  status: 5
+              store_4_dispatched:
+                summary: 'Store: dispatched (7)'
+                value:
+                  status: 7
+              store_5_delivered:
+                summary: 'Store: delivered (8)'
+                value:
+                  status: 8
+              store_pickup_collected:
+                summary: 'Store, pickup order: customer collected it (6), then send 8'
+                value:
+                  status: 6
+              store_reject:
+                summary: 'Store: reject or cancel (9) with a reason'
+                value:
+                  metadata:
+                    reason: Item out of stock
+                  status: 9
       responses:
         '200':
           description: Order cancelled (or status unchanged).
@@ -1646,7 +1698,11 @@ paths:
           required: true
           schema:
             type: string
+            enum:
+              - "3"
+            example: "3"
           example: "3"
+          description: Payment method to read the balance of. Send 3 (wallet).
       responses:
         '200':
           description: Balance returned.
@@ -1687,7 +1743,11 @@ paths:
           required: true
           schema:
             type: string
+            enum:
+              - "3"
+            example: "3"
           example: "3"
+          description: Whose history to list. Send 3 (wallet).
         - name: limit
           in: query
           required: true
@@ -1748,7 +1808,11 @@ paths:
           required: true
           schema:
             type: string
+            enum:
+              - "2"
+            example: "2"
           example: "2"
+          description: Gateway that pays for the wallet top-up. Send 2 (card).
       requestBody:
         required: true
         content:
@@ -1800,7 +1864,11 @@ paths:
           required: true
           schema:
             type: string
+            enum:
+              - "2"
+            example: "2"
           example: "2"
+          description: Payment gateway id. Send 2 (the card gateway; the same code as payment_via 2). The customer app always sends 2 here.
         - name: domain_name
           in: query
           required: true
@@ -1848,7 +1916,11 @@ paths:
           required: true
           schema:
             type: string
+            enum:
+              - "2"
+            example: "2"
           example: "2"
+          description: Payment gateway id. Send 2 (the card gateway; the same code as payment_via 2). The customer app always sends 2 here.
       requestBody:
         required: true
         content:
@@ -1896,7 +1968,11 @@ paths:
           required: true
           schema:
             type: string
+            enum:
+              - "2"
+            example: "2"
           example: "2"
+          description: Payment gateway id. Send 2 (the card gateway; the same code as payment_via 2). The customer app always sends 2 here.
       requestBody:
         required: true
         content:
@@ -1943,13 +2019,18 @@ paths:
           required: true
           schema:
             type: string
+            enum:
+              - "2"
+            example: "2"
           example: "2"
+          description: Payment gateway id. Send 2 (the card gateway; the same code as payment_via 2). The customer app always sends 2 here.
         - name: cardId
           in: path
           required: true
           schema:
             type: string
-          description: Saved payment method id.
+            example: '{{savedCardId}}'
+          description: 'Saved card id: the `id` of the card in the customer''s payment modes list.'
       responses:
         '200':
           description: Card deleted (if the backend returns a body).

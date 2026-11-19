@@ -25,11 +25,13 @@ components:
       name: status
       in: path
       required: true
-      description: 'Menu status to create with. 0 or 1.'
+      description: 'Status to create the menu with: 1 = active (live), 0 = inactive (draft). Any other value returns 400.'
       schema:
         type: string
-        enum: ['0', '1']
-        example: '1'
+        enum:
+          - "0"
+          - "1"
+        example: "1"
     MenuIdPath:
       name: id
       in: path

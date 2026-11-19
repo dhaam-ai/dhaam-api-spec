@@ -170,6 +170,26 @@ Customer order flow:
    - An expired or used quote returns 404 `QUOTE_NOT_FOUND`: quote again, then create.
 3. **Check it.** `GET /api/v1/orders/{id}`: `order_status` starts at 1 (New).
 
+### Move an order to Delivered (store)
+
+Sign in as the store (login with `role` `"2"`, or `"101"` for an outlet user) and call
+`POST /api/v1/orders/{id}` once per stage. `{id}` is `order.id` (UUID) or `order.order_id` (number)
+from the create response.
+
+| Step | Body | Order is now |
+|------|------|--------------|
+| 1 | `{"status": 2, "metadata": {"prep_time": 20}}` | Accepted (prep time in minutes, optional) |
+| 2 | `{"status": 4}` | Processed (being prepared) |
+| 3 | `{"status": 5}` | Order ready |
+| 4 | `{"status": 7}` | Dispatched |
+| 5 | `{"status": 8}` | Delivered (final) |
+
+- Pickup orders: after 5, send 6 (customer collected it), then 8.
+- Reject or cancel: `{"status": 9, "metadata": {"reason": "Item out of stock"}}`. Delivered and
+  Cancelled are final.
+- A customer token sends only 9 (cancel). Cash-on-delivery orders are cancelled by the store, not the
+  customer.
+
 ## Value reference
 
 Every code a request or response uses, in one place. Each field also carries its `enum` and an
@@ -191,12 +211,21 @@ example in the spec.
 | `order_mode` | 1 scheduled (send `scheduled_for`), 2 now |
 | `payment_via`, `payment_mode`, `gateway_type` | 1 cash on delivery, 2 card, 3 wallet |
 | `order_status` | 1 New, 2 Accepted, 3 Assigned, 4 Processed, 5 Order ready, 6 Pickup, 7 Dispatched, 8 Delivered, 9 Cancelled, 10 Deleted, 11 Pickup started |
-| Cancel `status` | 9 |
+| Status update `status` (`POST /api/v1/orders/{id}`) | Store: 2 Accepted, 4 Processed, 5 Order ready, 7 Dispatched, 8 Delivered (6 Picked up for pickup orders), 9 reject. Customer: 9 only. |
 | `refund_method` | `Source` (back to the original payment), `Wallet` |
 | `entity_type` (items) | 1 product, 2 modifier, 3 modifier group, 4 upsell, 5 deal, 6 variant, 7 bundle |
 | Category `category_type` | 1 business category (platform), 2 product category (a store's menu); store setup uses 2 |
 | Category `type` | `parent` (top level), `child` (subcategory) |
 | Menu create `{status}` (URL) | `0` inactive, `1` active |
+| Path `{id}` of an order | `order.id` (UUID) or `order.order_id` (number) from the create response |
+| Path `{gatewayId}` (payments) | `2` card gateway (card setup, saved cards, wallet top-up); `3` wallet (`/transactions`) |
+| Path `{paymentMethodId}` (balance) | `3` wallet |
+| Path `{otptype}` (OTP verify) | `signup`, `login`, `password_change` (same as `type` in the initiate call) |
+| Path `{identifier_type}` | `email`, `phone` |
+| Path `{provider}` (social login) | `google`, `apple`, `facebook` |
+| Path `{id}` of an outlet / item | `outlet_uuid` from store register / `item_uuid` from item create |
+| Path `{id}` of a menu schedule | numeric `menu_id` for create and list; `schedule_uuid` for read one and update |
+| Path `{id}` of an address / customer | numeric address `id` from the address list / numeric `user.id` from login |
 | `day_of_week` (menu and outlet hours) | 1 Monday … 7 Sunday |
 | Outlet hours `delivery_mode` | 1 delivery hours, 2 pickup hours |
 | `schedule_type` | 1 regular opening hours |
