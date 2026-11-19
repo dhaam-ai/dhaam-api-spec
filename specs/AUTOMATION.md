@@ -125,7 +125,81 @@ Customer order flow:
 4. Create: `POST /api/v1/orders/create` with the quote. Quotes are required before create.
 5. Read: `GET /api/v1/orders/{id}` for detail, `POST /api/v1/orders/list` for the list.
 6. Cancel: `GET /api/v1/orders/{id}/cancellation-preview` first, then `POST /api/v1/orders/{id}`
-   with the cancel status and reason. The status code is in the operation's description.
+   with `status` 9 (Cancelled) and a reason.
+
+### Place an order (quote, then create)
+
+1. **Quote.** `POST /api/v1/orders/quote` prices the cart for one outlet and returns a quote id.
+   The spec has three ready examples: delivery now with cash, scheduled delivery, pickup with card.
+
+   ```json
+   {
+     "customer_id": "{{customerId}}",
+     "outlet_id": "{{outletId}}",
+     "address": "Synthetic Street 1, Testville",
+     "latitude": 12.9716,
+     "longitude": 77.5946,
+     "delivery_mode": 1,
+     "order_mode": 2,
+     "payment_via": 1,
+     "timezone": "Asia/Kolkata",
+     "items": [
+       { "item_id": "{{itemId}}", "menu_id": "{{menuId}}", "entity_type": 1, "quantity": 2,
+         "unit_price": 250.00, "notes": "" }
+     ]
+   }
+   ```
+
+   - `delivery_mode` 1 = home delivery, 2 = pickup (see the value reference below).
+   - `order_mode` 2 = now; 1 = scheduled, and then also send `scheduled_for` (ISO 8601 time).
+   - `payment_via` 1 = cash on delivery, 2 = card, 3 = wallet. Optional on the quote, required
+     before create.
+   - Quote again after any cart change. A quote lives 30 minutes and is used up by the create.
+2. **Create.** `POST /api/v1/orders/create` with the quote id from step 1:
+
+   ```json
+   {
+     "quotation_id": "{{quotationId}}",
+     "customer_id": "{{customerId}}",
+     "client_request_id": "test-run-1-order-0001"
+   }
+   ```
+
+   - `client_request_id` must be new for every order. Sending the same one again returns the
+     first order instead of creating a second, so a retry after a timeout is safe.
+   - An expired or used quote returns 404 `QUOTE_NOT_FOUND`: quote again, then create.
+3. **Check it.** `GET /api/v1/orders/{id}`: `order_status` starts at 1 (New).
+
+## Value reference
+
+Every code a request or response uses, in one place. Each field also carries its `enum` and an
+example in the spec.
+
+| Field | Values |
+|-------|--------|
+| `role` (login, refresh, social) | `"1"` admin, `"2"` merchant (store owner), `"3"` manager, `"4"` customer, `"5"` super admin, `"6"` agent, `"101"` outlet user. Strings. |
+| Social login `provider` (URL) | `google`, `apple`, `facebook`. The body's `provider_token` is that provider's token: Google id_token, Apple id_token (plus `nonce`), Facebook access token. |
+| Social login `action` | `callback` (sign in with a token the app already has), `initiate` (start the provider's redirect flow) |
+| OTP `type` | `signup`, `login`, `password_change`, `email_change`, `phone_change`, `enable2fa` |
+| OTP `provider_type` | `ses` (email), `sms` (text), `whatsapp` (phone) |
+| `identifier_type` | `email`, `phone` |
+| `platform` | `web`, `android`, `ios` |
+| `device_type` (user profile) | `web`, `ios`, `android`, `desktop` |
+| `verification_status` | 0 not verified, 1 email, 2 phone, 3 email and phone, 4 verified by an admin |
+| `business_type` | Ids from the storefront config query `businessTypes`, for example 1 restaurant, 2 grocery, 3 cafe |
+| `delivery_mode` (orders) | 1 home delivery, 2 pickup, 3 takeaway, 4 dine-in. Ids from the config query `deliveryModes`. |
+| `order_mode` | 1 scheduled (send `scheduled_for`), 2 now |
+| `payment_via`, `payment_mode`, `gateway_type` | 1 cash on delivery, 2 card, 3 wallet |
+| `order_status` | 1 New, 2 Accepted, 3 Assigned, 4 Processed, 5 Order ready, 6 Pickup, 7 Dispatched, 8 Delivered, 9 Cancelled, 10 Deleted, 11 Pickup started |
+| Cancel `status` | 9 |
+| `refund_method` | `Source` (back to the original payment), `Wallet` |
+| `entity_type` (items) | 1 product, 2 modifier, 3 modifier group, 4 upsell, 5 deal, 6 variant, 7 bundle |
+| Category `category_type` | 1 business category (platform), 2 product category (a store's menu); store setup uses 2 |
+| Category `type` | `parent` (top level), `child` (subcategory) |
+| Menu create `{status}` (URL) | `0` inactive, `1` active |
+| `day_of_week` (menu and outlet hours) | 1 Monday … 7 Sunday |
+| Outlet hours `delivery_mode` | 1 delivery hours, 2 pickup hours |
+| `schedule_type` | 1 regular opening hours |
 
 Admin setup, to create a store that accepts orders. Run these in order. [TK: confirm the order
 and which calls are required; see the mapping below.]

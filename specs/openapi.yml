@@ -209,7 +209,7 @@ components:
             $ref: '#/components/schemas/Menu_MessageError'
       description: Schedule or menu not found, or a lookup failed. Returned as {message}.
     Menu_Unauthorized:
-      description: Missing or invalid bearer token. The edge rejects the request before it reaches this service.
+      description: Missing or invalid bearer token.
       x-todo: Body shape of the 401 response is not verified.
     Profile_BadRequest:
       content:
@@ -364,6 +364,14 @@ components:
           description: Cognito username. Internal, do not display.
           type: string
         verification_status:
+          description: 'Verification: 0 = not verified, 1 = email verified, 2 = phone verified, 3 = email and phone verified, 4 = verified by an admin.'
+          enum:
+            - 0
+            - 1
+            - 2
+            - 3
+            - 4
+          example: 1
           type: integer
       type: object
     Auth_CheckUserData:
@@ -496,7 +504,16 @@ components:
           description: Account password. Never log it.
           type: string
         role:
-          description: Role id as a string.
+          description: 'Role id as a string: 1 = admin, 2 = merchant (store owner), 3 = manager, 4 = customer, 5 = super admin, 6 = agent, 101 = outlet user. The customer app sends "4".'
+          enum:
+            - "1"
+            - "2"
+            - "3"
+            - "4"
+            - "5"
+            - "6"
+            - "101"
+          example: "2"
           type: string
         tenant_id:
           description: Tenant identifier used in the Cognito username.
@@ -532,6 +549,15 @@ components:
           description: Refresh token from a previous login or refresh.
           type: string
         role:
+          description: 'Role id as a number: 1 = admin, 2 = merchant (store owner), 3 = manager, 4 = customer, 5 = super admin, 6 = agent, 101 = outlet user. Use the same role as the login.'
+          enum:
+            - 1
+            - 2
+            - 3
+            - 4
+            - 5
+            - 6
+            - 101
           example: 4
           format: int64
           type: integer
@@ -548,6 +574,7 @@ components:
     Auth_SocialCallbackRequest:
       properties:
         action:
+          description: callback = sign in with a token the app already got from the provider (the usual case). initiate = start the provider's redirect flow.
           enum:
             - initiate
             - callback
@@ -573,7 +600,15 @@ components:
           description: Google or Apple id_token, or Facebook access token.
           type: string
         role:
-          description: Role id as a string.
+          description: 'Role id as a string: 1 = admin, 2 = merchant (store owner), 3 = manager, 4 = customer, 5 = super admin, 6 = agent, 101 = outlet user. The customer app sends "4".'
+          enum:
+            - "1"
+            - "2"
+            - "3"
+            - "4"
+            - "5"
+            - "6"
+            - "101"
           example: "4"
           type: string
         state:
@@ -605,6 +640,14 @@ components:
           format: int64
           type: integer
         verification_status:
+          description: 'Verification: 0 = not verified, 1 = email verified, 2 = phone verified, 3 = email and phone verified, 4 = verified by an admin.'
+          enum:
+            - 0
+            - 1
+            - 2
+            - 3
+            - 4
+          example: 1
           type: integer
       type: object
     Catalog_CategoryCreateRequest:
@@ -625,7 +668,11 @@ components:
             en: Beverages
           type: object
         category_type:
-          example: 1
+          description: 1 = business category (platform level), 2 = product category (a store's own menu category). Store setup uses 2.
+          enum:
+            - 1
+            - 2
+          example: 2
           type: integer
         description:
           example: Cold drinks and juices
@@ -644,8 +691,11 @@ components:
           example: 1
           type: integer
         type:
-          description: Category type string, required by the service. Allowed values are not enumerated in code.
-          example: product
+          description: parent = a top-level category, child = a subcategory under a parent category.
+          enum:
+            - parent
+            - child
+          example: parent
           type: string
           x-todo: Allowed values for type are not enumerated in dh-catalog-service code. Confirm with the service owner.
       required:
@@ -703,7 +753,15 @@ components:
           example: Sample cold drink for test data
           type: string
         entity_type:
-          description: Entity type. 1 is a product.
+          description: 'Item kind: 1 = product, 2 = modifier, 3 = modifier group, 4 = upsell, 5 = deal, 6 = variant, 7 = bundle. A plain product is 1.'
+          enum:
+            - 1
+            - 2
+            - 3
+            - 4
+            - 5
+            - 6
+            - 7
           example: 1
           type: integer
         image:
@@ -1008,7 +1066,15 @@ components:
       description: One schedule row to create. Each entry in time_slots becomes one stored row, so one item can store several time slots for the same day.
       properties:
         day_of_week:
-          description: 1 is Monday, 7 is Sunday (ISO weekday). The create call rejects 0; other values are not range-checked in the usecase.
+          description: 'Day of the week, ISO numbering: 1 = Monday, 2 = Tuesday, 3 = Wednesday, 4 = Thursday, 5 = Friday, 6 = Saturday, 7 = Sunday.'
+          enum:
+            - 1
+            - 2
+            - 3
+            - 4
+            - 5
+            - 6
+            - 7
           example: 1
           type: integer
         event_name:
@@ -1074,7 +1140,15 @@ components:
           example: user
           type: string
         day_of_week:
-          description: 1 is Monday, 7 is Sunday.
+          description: 'Day of the week, ISO numbering: 1 = Monday, 2 = Tuesday, 3 = Wednesday, 4 = Thursday, 5 = Friday, 6 = Saturday, 7 = Sunday.'
+          enum:
+            - 1
+            - 2
+            - 3
+            - 4
+            - 5
+            - 6
+            - 7
           example: 1
           type: integer
         description:
@@ -1209,6 +1283,15 @@ components:
           example: "14:00:00"
           type: string
         day_of_week:
+          description: 'Day of the week, ISO numbering: 1 = Monday, 2 = Tuesday, 3 = Wednesday, 4 = Thursday, 5 = Friday, 6 = Saturday, 7 = Sunday.'
+          enum:
+            - 1
+            - 2
+            - 3
+            - 4
+            - 5
+            - 6
+            - 7
           example: 1
           type: integer
         description:
@@ -1258,6 +1341,8 @@ components:
         charge_value:
           type: number
         current_status:
+          description: 'The order''s current status, as text (for example New or Accepted). The numeric codes are in the order''s order_status: 1 = New, 2 = Accepted, 3 = Assigned, 4 = Processed, 5 = Order ready, 6 = Pickup, 7 = Dispatched, 8 = Delivered, 9 = Cancelled, 10 = Deleted, 11 = Pickup started.'
+          example: New
           type: string
         current_status_id:
           type: integer
@@ -1460,7 +1545,15 @@ components:
     Order_OrderListFilters:
       properties:
         delivery_mode:
+          description: 'Delivery modes to match: 1 = home delivery, 2 = pickup, 3 = takeaway, 4 = dine-in.'
+          example:
+            - 1
           items:
+            enum:
+              - 1
+              - 2
+              - 3
+              - 4
             type: integer
           type: array
         excluded_status_ids:
@@ -1505,7 +1598,20 @@ components:
           description: Requires search_fields.
           type: string
         status:
-          description: Single order_status to match.
+          description: 'Single order status to match. Order status code: 1 = New, 2 = Accepted, 3 = Assigned, 4 = Processed, 5 = Order ready, 6 = Pickup, 7 = Dispatched, 8 = Delivered, 9 = Cancelled, 10 = Deleted, 11 = Pickup started.'
+          enum:
+            - 1
+            - 2
+            - 3
+            - 4
+            - 5
+            - 6
+            - 7
+            - 8
+            - 9
+            - 10
+            - 11
+          example: 1
           type: integer
       type: object
       x-todo: The customer app sends filters named payment_mode_id, order_mode_id, delivery_mode_id, platform_id, search and user_id. The backend reads payment_modes, delivery_mode, order_type, platform_used, search_text, search_fields and ignores user_id. The app's names are not read by the backend. Confirm before publishing; the documented names below are the ones the backend reads.
@@ -1598,6 +1704,13 @@ components:
           format: double
           type: number
         delivery_mode:
+          description: 'How the order reaches the customer: 1 = home delivery, 2 = pickup, 3 = takeaway, 4 = dine-in. The ids are the tenant''s delivery modes (storefront config query `deliveryModes`); a store accepts only the modes it has switched on. The customer app sends 1 by default.'
+          enum:
+            - 1
+            - 2
+            - 3
+            - 4
+          example: 1
           type: integer
         delivery_mode_name:
           type: string
@@ -1627,6 +1740,20 @@ components:
         order_source_name:
           type: string
         order_status:
+          description: 'Order status code: 1 = New, 2 = Accepted, 3 = Assigned, 4 = Processed, 5 = Order ready, 6 = Pickup, 7 = Dispatched, 8 = Delivered, 9 = Cancelled, 10 = Deleted, 11 = Pickup started.'
+          enum:
+            - 1
+            - 2
+            - 3
+            - 4
+            - 5
+            - 6
+            - 7
+            - 8
+            - 9
+            - 10
+            - 11
+          example: 1
           type: integer
         order_status_name:
           type: string
@@ -1637,6 +1764,12 @@ components:
         outlet_id:
           type: string
         payment_mode:
+          description: 'Payment method: 1 = cash on delivery, 2 = card, 3 = wallet.'
+          enum:
+            - 1
+            - 2
+            - 3
+          example: 1
           type: integer
         payment_mode_name:
           type: string
@@ -1694,11 +1827,17 @@ components:
           type: number
           x-todo: The app sends refund_amount inside metadata and may send an empty string. The backend binds this field as a number at the top level. Confirm the app's payload shape before publishing.
         refund_method:
-          description: Sent inside metadata by the customer app. Not read by the backend.
+          description: 'Where a refund goes: Source = back to the original payment, Wallet = to the customer''s wallet. Sent inside metadata by the customer app.'
+          enum:
+            - Source
+            - Wallet
+          example: Source
           type: string
           x-todo: Confirm whether the backend reads refund_method. The customer cancel path uses the cash/wallet rules documented above.
         status:
-          description: Target status. For a customer cancel, 9 (CANCELLED).
+          description: 'Target status. A customer can only cancel: send 9 (Cancelled). Order status code: 1 = New, 2 = Accepted, 3 = Assigned, 4 = Processed, 5 = Order ready, 6 = Pickup, 7 = Dispatched, 8 = Delivered, 9 = Cancelled, 10 = Deleted, 11 = Pickup started.'
+          enum:
+            - 9
           example: 9
           format: int64
           maximum: 10
@@ -1726,6 +1865,16 @@ components:
       description: A nested cart node (modifier, product in an upsell/bundle, variant, and so on). Its `id` is required.
       properties:
         entity_type:
+          description: 'Item kind: 1 = product, 2 = modifier, 3 = modifier group, 4 = upsell, 5 = deal, 6 = variant, 7 = bundle.'
+          enum:
+            - 1
+            - 2
+            - 3
+            - 4
+            - 5
+            - 6
+            - 7
+          example: 2
           type: integer
         id:
           format: uuid
@@ -1770,6 +1919,13 @@ components:
           format: double
           type: number
         delivery_mode:
+          description: 'How the order reaches the customer: 1 = home delivery, 2 = pickup, 3 = takeaway, 4 = dine-in. The ids are the tenant''s delivery modes (storefront config query `deliveryModes`); a store accepts only the modes it has switched on. The customer app sends 1 by default.'
+          enum:
+            - 1
+            - 2
+            - 3
+            - 4
+          example: 1
           type: integer
         delivery_time:
           type: integer
@@ -1807,12 +1963,23 @@ components:
         notes:
           type: string
         order_mode:
+          description: 'When the order is wanted: 2 = now (on demand), 1 = scheduled (then also send `scheduled_for`). The customer app sends 2 by default.'
+          enum:
+            - 1
+            - 2
+          example: 2
           type: integer
         order_prep_time:
           type: integer
         order_source:
           type: integer
         payment_via:
+          description: 'Payment method: 1 = cash on delivery, 2 = card (secure card payment), 3 = wallet. Optional on a quote; required before the order is created. Use a method the customer has (payment modes call).'
+          enum:
+            - 1
+            - 2
+            - 3
+          example: 1
           type: integer
         platform_fees:
           format: double
@@ -1852,7 +2019,15 @@ components:
             $ref: '#/components/schemas/Order_QuoteAttachedNode'
           type: array
         entity_type:
-          description: 'Entity type code. The customer app uses 1 = product, 2 = modifier, 3 = modifier group, 4 = upsell, 5 = deal, 6 = variant, 7 = bundle. x-todo: confirm these codes against the backend constants (leaf = product, deal, modifier; container = variant, upsell, bundle, modifier group).'
+          description: 'Item kind: 1 = product, 2 = modifier, 3 = modifier group, 4 = upsell, 5 = deal, 6 = variant, 7 = bundle.'
+          enum:
+            - 1
+            - 2
+            - 3
+            - 4
+            - 5
+            - 6
+            - 7
           example: 1
           type: integer
         is_selected:
@@ -1915,8 +2090,13 @@ components:
         delivery_address:
           $ref: '#/components/schemas/Order_DeliveryAddress'
         delivery_mode:
-          description: 'Required. 0 = ASAP, 1 = Scheduled (per the app; x-todo: confirm codes against constants).'
-          example: 0
+          description: 'How the order reaches the customer: 1 = home delivery, 2 = pickup, 3 = takeaway, 4 = dine-in. The ids are the tenant''s delivery modes (storefront config query `deliveryModes`); a store accepts only the modes it has switched on. The customer app sends 1 by default.'
+          enum:
+            - 1
+            - 2
+            - 3
+            - 4
+          example: 1
           minimum: 0
           type: integer
         items:
@@ -1943,8 +2123,11 @@ components:
           maxLength: 200
           type: string
         order_mode:
-          description: '0 = Delivery, 1 = Pickup (x-todo: confirm against constants).'
-          example: 0
+          description: 'When the order is wanted: 2 = now (on demand), 1 = scheduled (then also send `scheduled_for`). The customer app sends 2 by default.'
+          enum:
+            - 1
+            - 2
+          example: 2
           minimum: 0
           type: integer
         order_source:
@@ -1955,8 +2138,12 @@ components:
           format: uuid
           type: string
         payment_via:
-          description: Payment mode id, for example 1 = Cash, 2 = Cybersource, 3 = Wallet. Optional at quote time, required before POST /create.
-          example: 2
+          description: 'Payment method: 1 = cash on delivery, 2 = card (secure card payment), 3 = wallet. Optional on a quote; required before the order is created. Use a method the customer has (payment modes call).'
+          enum:
+            - 1
+            - 2
+            - 3
+          example: 1
           minimum: 0
           type: integer
         promo_code:
@@ -2065,6 +2252,12 @@ components:
         gateway_id:
           type: integer
         gateway_type:
+          description: 'Payment method: 1 = cash on delivery, 2 = card, 3 = wallet. Send this value as `payment_via` on the quote.'
+          enum:
+            - 1
+            - 2
+            - 3
+          example: 1
           type: integer
         id:
           type: string
@@ -2225,7 +2418,15 @@ components:
           example: "21:00"
           type: string
         day_of_week:
-          description: ISO weekday, 1 is Monday and 7 is Sunday.
+          description: 'Day of the week, ISO numbering: 1 = Monday, 2 = Tuesday, 3 = Wednesday, 4 = Thursday, 5 = Friday, 6 = Saturday, 7 = Sunday.'
+          enum:
+            - 1
+            - 2
+            - 3
+            - 4
+            - 5
+            - 6
+            - 7
           example: 1
           maximum: 7
           minimum: 1
@@ -2264,7 +2465,9 @@ components:
           example: "09:00"
           type: string
         schedule_type:
-          description: Schedule kind. 1 is regular, the only value defined in the code reviewed.
+          description: 'Schedule kind: 1 = regular opening hours.'
+          enum:
+            - 1
           example: 1
           type: integer
         slot_number:
@@ -2510,10 +2713,18 @@ components:
           example: new.customer@example.com
           type: string
         otp_type:
+          description: email_change to change the email, phone_change to change the phone.
+          enum:
+            - email_change
+            - phone_change
           example: email_change
           type: string
         provider_type:
-          description: ses for email; sms or sns for phone.
+          description: 'Who delivers the code: ses = email, sms = text message, whatsapp = WhatsApp message. Use ses with an email identifier, sms or whatsapp with a phone.'
+          enum:
+            - ses
+            - sms
+            - whatsapp
           example: ses
           type: string
       required:
@@ -2535,6 +2746,10 @@ components:
           example: "123456"
           type: string
         otp_type:
+          description: The same otp_type as the change request.
+          enum:
+            - email_change
+            - phone_change
           example: email_change
           type: string
         role_id:
@@ -2631,7 +2846,12 @@ components:
           description: Optional push token.
           type: string
         device_type:
-          description: ios, android, web or desktop.
+          description: web, ios, android or desktop.
+          enum:
+            - web
+            - ios
+            - android
+            - desktop
           example: web
           type: string
         ip_address:
@@ -2800,9 +3020,19 @@ components:
           example: false
           type: boolean
         platform:
+          description: 'Where the request comes from: web, android or ios.'
+          enum:
+            - web
+            - android
+            - ios
+          example: web
           type: string
         provider_type:
-          description: For email, ses. For phone, sms or whatsapp.
+          description: 'Who delivers the code: ses = email, sms = text message, whatsapp = WhatsApp message. Use ses with an email identifier, sms or whatsapp with a phone.'
+          enum:
+            - ses
+            - sms
+            - whatsapp
           example: ses
           type: string
         recaptcha_token:
@@ -2816,8 +3046,15 @@ components:
           format: uuid
           type: string
         type:
-          description: OTP purpose, for example signup, login or password_change.
-          example: signup
+          description: 'Why the code is sent: signup, login, password_change, email_change, phone_change or enable2fa.'
+          enum:
+            - signup
+            - login
+            - password_change
+            - email_change
+            - phone_change
+            - enable2fa
+          example: login
           type: string
       required:
         - identifier_type
@@ -2970,11 +3207,22 @@ components:
           example: "21:00:00"
           type: string
         day_of_week:
-          description: ISO weekday, 1 is Monday and 7 is Sunday.
+          description: 'Day of the week, ISO numbering: 1 = Monday, 2 = Tuesday, 3 = Wednesday, 4 = Thursday, 5 = Friday, 6 = Saturday, 7 = Sunday.'
+          enum:
+            - 1
+            - 2
+            - 3
+            - 4
+            - 5
+            - 6
+            - 7
           example: 1
           type: integer
         delivery_mode:
-          description: 1 is delivery, 2 is pickup.
+          description: 1 = delivery hours, 2 = pickup hours.
+          enum:
+            - 1
+            - 2
           example: 1
           type: integer
         effective_date:
@@ -3007,7 +3255,9 @@ components:
           format: int64
           type: integer
         schedule_type:
-          description: 1 is regular.
+          description: 'Schedule kind: 1 = regular opening hours.'
+          enum:
+            - 1
           example: 1
           type: integer
         slot_number:
@@ -3051,7 +3301,8 @@ components:
           example: 1 Example Plaza, Testville
           type: string
         business_type:
-          example: "1"
+          description: 'Business type id, from the storefront config query `businessTypes`, for example 1 = restaurant, 2 = grocery, 3 = cafe, 4 = pharmacy, 5 = food, 6 = butcher, 7 = retail, 8 = salon. Ids are per tenant: read them from the config query.'
+          example: 1
           type: string
         city_id:
           example: Testville
@@ -3224,6 +3475,14 @@ components:
         user_name:
           type: string
         verification_status:
+          description: 'Verification: 0 = not verified, 1 = email verified, 2 = phone verified, 3 = email and phone verified, 4 = verified by an admin.'
+          enum:
+            - 0
+            - 1
+            - 2
+            - 3
+            - 4
+          example: 1
           format: int64
           type: integer
       type: object
@@ -3239,7 +3498,7 @@ paths:
       description: Public. Verifies a provider token (Google or Apple id_token, Facebook access token) and returns DHAAM tokens. The provider is taken from the URL, not the body. The body tenant_id must match the tenant registered for the request domain. Rate limited per IP and per tenant (see info.description).
       operationId: auth_socialCallback
       parameters:
-        - description: Social provider.
+        - description: 'Social provider: google, apple or facebook. Put the same provider in the URL as the token you send.'
           in: path
           name: provider
           required: true
@@ -3248,22 +3507,56 @@ paths:
               - google
               - facebook
               - apple
+            example: google
             type: string
       requestBody:
         content:
           application/json:
-            example:
-              action: callback
-              device_info:
-                app_version: 1.0.0
-                device_id: 00000000-0000-4000-8000-000000000001
-                device_name: mobile
-                device_type: mobile
-                os_version: ios 17.0
-                user_agent: Example User Agent
-              provider_token: '{{providerToken}}'
-              role: "4"
-              tenant_id: '{{tenantId}}'
+            examples:
+              apple:
+                summary: 'Apple: provider = apple, send the Apple id_token and the nonce used to get it; full_name only on the first sign-in'
+                value:
+                  action: callback
+                  device_info:
+                    app_version: 1.0.0
+                    device_id: 00000000-0000-4000-8000-000000000001
+                    device_name: Test phone
+                    device_type: mobile
+                    os_version: ios 17.0
+                    user_agent: Example User Agent
+                  full_name: Test Customer
+                  nonce: '{{appleNonce}}'
+                  provider_token: '{{appleIdToken}}'
+                  role: "4"
+                  tenant_id: '{{tenantId}}'
+              facebook:
+                summary: 'Facebook: provider = facebook, send the Facebook access token'
+                value:
+                  action: callback
+                  device_info:
+                    app_version: 1.0.0
+                    device_id: 00000000-0000-4000-8000-000000000001
+                    device_name: Test phone
+                    device_type: mobile
+                    os_version: ios 17.0
+                    user_agent: Example User Agent
+                  provider_token: '{{facebookAccessToken}}'
+                  role: "4"
+                  tenant_id: '{{tenantId}}'
+              google:
+                summary: 'Google: provider = google, send the Google id_token'
+                value:
+                  action: callback
+                  device_info:
+                    app_version: 1.0.0
+                    device_id: 00000000-0000-4000-8000-000000000001
+                    device_name: Test phone
+                    device_type: mobile
+                    os_version: ios 17.0
+                    user_agent: Example User Agent
+                  provider_token: '{{googleIdToken}}'
+                  role: "4"
+                  tenant_id: '{{tenantId}}'
             schema:
               $ref: '#/components/schemas/Auth_SocialCallbackRequest'
         required: true
@@ -3377,7 +3670,7 @@ paths:
           application/json:
             example:
               password: '{{password}}'
-              role: '{{roleId}}'
+              role: "2"
               tenant_id: '{{tenantId}}'
               user_id: '{{userId}}'
             schema:
@@ -3463,12 +3756,12 @@ paths:
               category_name: Beverages
               category_name_lang:
                 en: Beverages
-              category_type: 1
+              category_type: 2
               description: Cold drinks and juices
               is_enabled: true
               owner_id: 1001
               sequence: 1
-              type: product
+              type: parent
             schema:
               $ref: '#/components/schemas/Catalog_CategoryCreateRequest'
         required: true
@@ -4496,10 +4789,13 @@ paths:
       requestBody:
         content:
           application/json:
-            example:
-              client_request_id: synthetic-request-0001
-              customer_id: 00000000-0000-4000-8000-000000000001
-              quotation_id: 00000000-0000-4000-8000-000000000005
+            examples:
+              create_from_quote:
+                summary: 'Create the order from a quote: quotation_id from the quote response, a new client_request_id per order'
+                value:
+                  client_request_id: synthetic-request-0001
+                  customer_id: 00000000-0000-4000-8000-000000000001
+                  quotation_id: 00000000-0000-4000-8000-000000000005
             schema:
               $ref: '#/components/schemas/Order_CreateOrderRequest'
         required: true
@@ -4692,23 +4988,65 @@ paths:
       requestBody:
         content:
           application/json:
-            example:
-              address: Synthetic Street 1, Testville
-              customer_id: 00000000-0000-4000-8000-000000000001
-              delivery_mode: 0
-              items:
-                - entity_type: 1
-                  item_id: 00000000-0000-4000-8000-000000000003
-                  menu_id: 00000000-0000-4000-8000-000000000004
-                  notes: ""
-                  quantity: 2
-                  unit_price: 250
-              latitude: 12.9716
-              longitude: 77.5946
-              order_mode: 0
-              outlet_id: 00000000-0000-4000-8000-000000000002
-              payment_via: 2
-              timezone: Asia/Kolkata
+            examples:
+              deliver_now_cash:
+                summary: Home delivery, now, cash on delivery (delivery_mode 1, order_mode 2, payment_via 1)
+                value:
+                  address: Synthetic Street 1, Testville
+                  customer_id: 00000000-0000-4000-8000-000000000001
+                  delivery_mode: 1
+                  items:
+                    - entity_type: 1
+                      item_id: 00000000-0000-4000-8000-000000000003
+                      menu_id: 00000000-0000-4000-8000-000000000004
+                      notes: ""
+                      quantity: 2
+                      unit_price: 250
+                  latitude: 12.9716
+                  longitude: 77.5946
+                  order_mode: 2
+                  outlet_id: 00000000-0000-4000-8000-000000000002
+                  payment_via: 1
+                  timezone: Asia/Kolkata
+              deliver_scheduled_cash:
+                summary: Home delivery, scheduled (order_mode 1 + scheduled_for), cash
+                value:
+                  address: Synthetic Street 1, Testville
+                  customer_id: 00000000-0000-4000-8000-000000000001
+                  delivery_mode: 1
+                  items:
+                    - entity_type: 1
+                      item_id: 00000000-0000-4000-8000-000000000003
+                      menu_id: 00000000-0000-4000-8000-000000000004
+                      notes: ""
+                      quantity: 2
+                      unit_price: 250
+                  latitude: 12.9716
+                  longitude: 77.5946
+                  order_mode: 1
+                  outlet_id: 00000000-0000-4000-8000-000000000002
+                  payment_via: 1
+                  scheduled_for: "2026-12-06T13:30:00Z"
+                  timezone: Asia/Kolkata
+              pickup_now_card:
+                summary: Pickup, now, card (delivery_mode 2, order_mode 2, payment_via 2)
+                value:
+                  address: Synthetic Street 1, Testville
+                  customer_id: 00000000-0000-4000-8000-000000000001
+                  delivery_mode: 2
+                  items:
+                    - entity_type: 1
+                      item_id: 00000000-0000-4000-8000-000000000003
+                      menu_id: 00000000-0000-4000-8000-000000000004
+                      notes: ""
+                      quantity: 2
+                      unit_price: 250
+                  latitude: 12.9716
+                  longitude: 77.5946
+                  order_mode: 2
+                  outlet_id: 00000000-0000-4000-8000-000000000002
+                  payment_via: 2
+                  timezone: Asia/Kolkata
             schema:
               $ref: '#/components/schemas/Order_QuoteRequest'
         required: true

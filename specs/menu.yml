@@ -3,38 +3,23 @@ info:
   title: Dhaam Menu Service API (admin setup)
   version: 1.0.0
   description: >-
-    Scoped to the calls needed to set up test data: create a menu, and read, create and update a menu's
-    schedule (day, time slots and date range).
-    Public path prefix is /api/v1/catalog/menu. Send `Authorization: Bearer {{token}}` on every operation.
-    Ordering: create the menu (POST /create-menu/{status}), then create its schedule with POST /schedule/{id}
-    using the numeric menu_id of the menu. The create call returns the menu UUID; the numeric id comes from the
-    menu record (documented in the menu read operation, not in this file).
-    Status path value for create-menu: 0 or 1. Any other value returns 400.
-    Errors: every operation in this file returns {message} on error. 5xx messages are generic; details are logged
-    server-side.
-    Success responses use the envelope {success, data, meta}.
-    No rate limit or idempotency key is defined in this service's code.
+    Scoped to the calls needed to set up test data: create a menu, and read, create and update a menu's schedule (day, time slots and date range). Public path prefix is /api/v1/catalog/menu. Send `Authorization: Bearer {{token}}` on every operation. Ordering: create the menu (POST /create-menu/{status}), then create its schedule with POST /schedule/{id} using the numeric menu_id of the menu. The create call returns the menu UUID; the numeric id comes from the menu record (documented in the menu read operation, not in this file). Status path value for create-menu: 0 or 1. Any other value returns 400. Errors: every operation in this file returns {message} on error. 5xx messages are generic; details are logged server-side. Success responses use the envelope {success, data, meta}. No rate limit or idempotency key is defined in this service's code.
   x-source-commit: "b5b6099 (dh-menu development)"
-
 servers:
   - url: "{{baseUrl}}"
-
 tags:
   - name: menu-setup-menu
     description: Menu creation (test data setup).
   - name: menu-setup-time-slots
     description: Menu schedule read, create and update, including time slots (test data setup).
-
 security:
   - bearerAuth: []
-
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
-
   parameters:
     MenuStatusPath:
       name: status
@@ -63,7 +48,6 @@ components:
         type: string
         format: uuid
         example: 00000000-0000-4000-8000-000000000501
-
   responses:
     BadRequest:
       description: Invalid input, returned as {message}.
@@ -90,9 +74,8 @@ components:
           schema:
             $ref: '#/components/schemas/MessageError'
     Unauthorized:
-      description: Missing or invalid bearer token. The edge rejects the request before it reaches this service.
+      description: Missing or invalid bearer token.
       x-todo: 'Body shape of the 401 response is not verified.'
-
   schemas:
     MessageError:
       type: object
@@ -101,7 +84,6 @@ components:
         message:
           type: string
           example: 'menu id must be a number'
-
     CreateMenuRequest:
       type: object
       description: Required fields are not enumerated here. Send at least name and store_id.
@@ -150,17 +132,14 @@ components:
           format: date
           example: '2027-12-31'
       x-todo: 'Required fields and the allowed values for preferences are not enumerated in the request DTO. Confirm with the service validation.'
-
     CreateMenuResult:
       type: string
       description: The created menu identifier as returned by the service (the menu UUID).
       example: 00000000-0000-4000-8000-000000000401
-
     MenuScheduleItem:
       type: object
       description: >-
-        One schedule row to create. Each entry in time_slots becomes one stored row, so one item can store
-        several time slots for the same day.
+        One schedule row to create. Each entry in time_slots becomes one stored row, so one item can store several time slots for the same day.
       required: [schedule_type_id, event_type_id, day_of_week, time_slots, event_name]
       properties:
         schedule_type_id:
@@ -175,8 +154,16 @@ components:
           example: 1
         day_of_week:
           type: integer
-          description: 1 is Monday, 7 is Sunday (ISO weekday). The create call rejects 0; other values are not range-checked in the usecase.
+          description: 'Day of the week, ISO numbering: 1 = Monday, 2 = Tuesday, 3 = Wednesday, 4 = Thursday, 5 = Friday, 6 = Saturday, 7 = Sunday.'
           example: 1
+          enum:
+            - 1
+            - 2
+            - 3
+            - 4
+            - 5
+            - 6
+            - 7
         is_weekend_only:
           type: boolean
           example: false
@@ -186,8 +173,7 @@ components:
         time_slots:
           type: array
           description: >-
-            At least one slot in HH:MM-HH:MM, 24-hour. The end must be after the start. Slots must not repeat or
-            overlap on the same day across the request.
+            At least one slot in HH:MM-HH:MM, 24-hour. The end must be after the start. Slots must not repeat or overlap on the same day across the request.
           items:
             type: string
           example: ['11:00-14:00', '18:00-21:00']
@@ -198,15 +184,13 @@ components:
           type: integer
           format: int64
           description: >-
-            Store ID the schedule is written for. Required for admin, super admin and manager roles, and must be the
-            store of the menu. Merchant and outlet callers use their own store; this value is replaced.
+            Store ID the schedule is written for. Required for admin, super admin and manager roles, and must be the store of the menu. Merchant and outlet callers use their own store; this value is replaced.
           example: 2001
         outlet_id:
           type: integer
           format: int64
           description: Optional outlet ID. Omit or send 0 for the menu's default schedule. A non-zero outlet must be assigned to the menu.
           example: 4001
-
     MenuScheduleSetRequest:
       type: object
       required: [schedules]
@@ -230,13 +214,10 @@ components:
           minItems: 1
           items:
             $ref: '#/components/schemas/MenuScheduleItem'
-
     MenuScheduleResponse:
       type: object
       description: >-
-        One stored schedule row (one time slot). available_from and available_to are the slot's ends. Some fields
-        are not selected by every query (menu_name, the type and event labels and codes, and created_by/updated_by on
-        the menu-id read); they come back as empty strings or zero values.
+        One stored schedule row (one time slot). available_from and available_to are the slot's ends. Some fields are not selected by every query (menu_name, the type and event labels and codes, and created_by/updated_by on the menu-id read); they come back as empty strings or zero values.
       properties:
         schedule_id:
           type: integer
@@ -288,8 +269,16 @@ components:
           example: 100
         day_of_week:
           type: integer
-          description: 1 is Monday, 7 is Sunday.
+          description: 'Day of the week, ISO numbering: 1 = Monday, 2 = Tuesday, 3 = Wednesday, 4 = Thursday, 5 = Friday, 6 = Saturday, 7 = Sunday.'
           example: 1
+          enum:
+            - 1
+            - 2
+            - 3
+            - 4
+            - 5
+            - 6
+            - 7
         is_weekend_only:
           type: boolean
           example: false
@@ -344,12 +333,10 @@ components:
         updated_by:
           type: string
           example: user
-
     UpdateMenuScheduleRequest:
       type: object
       description: >-
-        Body fields the update handler binds. The usecase copies some of them; the repository writes none of them
-        (see the x-todo on the operation).
+        Body fields the update handler binds. The usecase copies some of them; the repository writes none of them (see the x-todo on the operation).
       properties:
         time_slots:
           type: array
@@ -367,6 +354,15 @@ components:
         day_of_week:
           type: integer
           example: 1
+          description: 'Day of the week, ISO numbering: 1 = Monday, 2 = Tuesday, 3 = Wednesday, 4 = Thursday, 5 = Friday, 6 = Saturday, 7 = Sunday.'
+          enum:
+            - 1
+            - 2
+            - 3
+            - 4
+            - 5
+            - 6
+            - 7
         is_weekend_only:
           type: boolean
           example: false
@@ -398,7 +394,6 @@ components:
         is_active:
           type: boolean
           example: true
-
 paths:
   /api/v1/catalog/menu/create-menu/{status}:
     post:
@@ -406,8 +401,7 @@ paths:
       operationId: menu_createMenu
       summary: Create a menu
       description: >-
-        Creates a menu with the given status (0 or 1). Returns 201 with the created menu identifier
-        in data. Create the menu before setting its schedule.
+        Creates a menu with the given status (0 or 1). Returns 201 with the created menu identifier in data. Create the menu before setting its schedule.
       parameters:
         - $ref: '#/components/parameters/MenuStatusPath'
       requestBody:
@@ -447,15 +441,13 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalError'
-
   /api/v1/catalog/menu/schedule/:
     get:
       tags: [menu-setup-time-slots]
       operationId: menu_listMenuSchedules
       summary: List all active menu schedule rows
       description: >-
-        Returns every schedule row with status 1, across menus, one row per time slot. Takes no query parameters.
-        Use it to find a schedule_uuid for the read and update calls.
+        Returns every schedule row with status 1, across menus, one row per time slot. Takes no query parameters. Use it to find a schedule_uuid for the read and update calls.
       x-security-note: Lists schedule rows for admin test setup. Use with synthetic test data only.
       responses:
         '200':
@@ -479,15 +471,13 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalError'
-
   /api/v1/catalog/menu/schedule/{id}:
     get:
       tags: [menu-setup-time-slots]
       operationId: menu_getMenuSchedule
       summary: Get one schedule row by its UUID
       description: >-
-        Returns one schedule row for the schedule UUID, with no status filter. The handler returns 404 for any error
-        from the lookup, including a database error.
+        Returns one schedule row for the schedule UUID, with no status filter. The handler returns 404 for any error from the lookup, including a database error.
       parameters:
         - $ref: '#/components/parameters/ScheduleUuidPath'
       responses:
@@ -515,13 +505,9 @@ paths:
       operationId: menu_updateMenuSchedule
       summary: Update one schedule row
       description: >-
-        Takes a schedule UUID and a body of schedule fields. Per the code path, the body is bound but not written:
-        the repository runs a statement that deletes the schedule row and binds menu_id, which this call does not
-        supply. The documented result is 500. Use only on synthetic test schedules.
+        Takes a schedule UUID and a body of schedule fields. Per the code path, the body is bound but not written: the repository runs a statement that deletes the schedule row and binds menu_id, which this call does not supply. The documented result is 500. Use only on synthetic test schedules.
       x-todo: >-
-        The repository runs menu_schedule_update.sql, a DELETE that needs a menu_id bind. The update call does
-        not supply it, so the statement is expected to fail with a database error (500) and nothing is updated.
-        Not verified against a database. Confirm the intended behaviour before QA uses this call.
+        The repository runs menu_schedule_update.sql, a DELETE that needs a menu_id bind. The update call does not supply it, so the statement is expected to fail with a database error (500) and nothing is updated. Not verified against a database. Confirm the intended behaviour before QA uses this call.
       x-security-note: Mutating admin call. Use only on synthetic test schedules.
       parameters:
         - $ref: '#/components/parameters/ScheduleUuidPath'
@@ -572,14 +558,7 @@ paths:
       operationId: menu_createMenuSchedule
       summary: Create the day and time-slot schedule of a menu
       description: >-
-        Creates schedule rows for the menu in the path. The path id is the numeric menu_id; a non-numeric value
-        returns 400. Each item in schedules is checked: schedule_type_id, event_type_id, day_of_week and event_name
-        are required and non-zero, time_slots is required, and slots must be valid and must not overlap on the same
-        day. The menu must belong to store_id (replaced by the caller's own store for merchant and outlet roles).
-        If outlet_id is set, the outlet must be assigned to the menu. Missing start_date defaults to the menu's
-        current date in its store's time zone. Replies 201 with the menu's active schedule rows (all of them,
-        including rows that were already there), not only the rows just written. A menu_id in the body is ignored;
-        the path value is used.
+        Creates schedule rows for the menu in the path. The path id is the numeric menu_id; a non-numeric value returns 400. Each item in schedules is checked: schedule_type_id, event_type_id, day_of_week and event_name are required and non-zero, time_slots is required, and slots must be valid and must not overlap on the same day. The menu must belong to store_id (replaced by the caller's own store for merchant and outlet roles). If outlet_id is set, the outlet must be assigned to the menu. Missing start_date defaults to the menu's current date in its store's time zone. Replies 201 with the menu's active schedule rows (all of them, including rows that were already there), not only the rows just written. A menu_id in the body is ignored; the path value is used.
       parameters:
         - $ref: '#/components/parameters/MenuIdPath'
       requestBody:
@@ -629,16 +608,13 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
-
   /api/v1/catalog/menu/schedule/menu/{id}:
     get:
       tags: [menu-setup-time-slots]
       operationId: menu_getMenuScheduleByMenuId
       summary: Get the active schedule rows of a menu
       description: >-
-        Returns every active schedule row (status 1) of the menu with the numeric menu_id in the path, one row per
-        time slot, including available_from and available_to. There is no separate time-slot resource. The handler
-        returns 404 for any error from the lookup.
+        Returns every active schedule row (status 1) of the menu with the numeric menu_id in the path, one row per time slot, including available_from and available_to. There is no separate time-slot resource. The handler returns 404 for any error from the lookup.
       parameters:
         - $ref: '#/components/parameters/MenuIdPath'
       responses:

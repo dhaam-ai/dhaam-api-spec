@@ -3,23 +3,11 @@ info:
   title: Dhaam Catalog Service API (admin setup and customer browsing)
   version: 1.0.0
   description: >-
-    Scoped to the calls needed to set up test data: category create, item create, get, update and list.
-    Also documents POST /item/list, which the customer app calls for browsing.
-    Public path prefix is /api/v1/catalog. Send `Authorization: Bearer {{token}}` where an operation needs it.
-    Ordering: create categories and items before mapping them. Items are not visible to shoppers
-    until they are mapped to a category (map-with-category, not in this file).
-    Pagination for list endpoints: send current_page (1-based) and limit in the body; the total is
-    returned in meta.total_count.
-    Responses use the dh-shared envelope: success returns {success, data, meta}; failure returns
-    {success:false, error:{type, message, details}, meta}. Successful responses are HTTP 200.
-    Accept-Language 'es' returns Spanish messages; anything else returns English.
-    No rate limit or idempotency key is defined in this service's code.
+    Scoped to the calls needed to set up test data: category create, item create, get, update and list. Also documents POST /item/list, which the customer app calls for browsing. Public path prefix is /api/v1/catalog. Send `Authorization: Bearer {{token}}` where an operation needs it. Ordering: create categories and items before mapping them. Items are not visible to shoppers until they are mapped to a category (map-with-category, not in this file). Pagination for list endpoints: send current_page (1-based) and limit in the body; the total is returned in meta.total_count. Responses use the dh-shared envelope: success returns {success, data, meta}; failure returns {success:false, error:{type, message, details}, meta}. Successful responses are HTTP 200. Accept-Language 'es' returns Spanish messages; anything else returns English. No rate limit or idempotency key is defined in this service's code.
   x-source-commit: "810394d (dh-catalog-service development)"
   x-todo: Confirm whether this operation needs a bearer token.
-
 servers:
   - url: "{{baseUrl}}"
-
 tags:
   - name: catalog-setup-category
     description: Category creation (store setup, test data).
@@ -27,17 +15,14 @@ tags:
     description: Product (item) create, get, update and list (store setup, test data).
   - name: catalog-customer-browse
     description: Item list calls made by the customer app.
-
 security:
   - bearerAuth: []
-
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
-
   parameters:
     AcceptLanguage:
       name: Accept-Language
@@ -71,7 +56,6 @@ components:
       schema:
         type: integer
         format: int64
-
   responses:
     BadRequest:
       description: Invalid input (INVALID_INPUT, VALIDATION_FAILED, MISSING_REQUIRED_FIELD).
@@ -94,7 +78,6 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-
   schemas:
     ErrorResponse:
       type: object
@@ -118,16 +101,18 @@ components:
         meta:
           type: object
           additionalProperties: true
-
     CategoryCreateRequest:
       type: object
       required: [type, category_name, category_type]
       properties:
         type:
           type: string
-          description: Category type string, required by the service. Allowed values are not enumerated in code.
-          example: product
+          description: parent = a top-level category, child = a subcategory under a parent category.
+          example: parent
           x-todo: 'Allowed values for type are not enumerated in dh-catalog-service code. Confirm with the service owner.'
+          enum:
+            - parent
+            - child
         category_name:
           type: string
           example: Beverages
@@ -139,7 +124,11 @@ components:
             en: Beverages
         category_type:
           type: integer
-          example: 1
+          example: 2
+          description: 1 = business category (platform level), 2 = product category (a store's own menu category). Store setup uses 2.
+          enum:
+            - 1
+            - 2
         owner_id:
           type: integer
           format: int64
@@ -161,7 +150,6 @@ components:
         has_products:
           type: boolean
           example: true
-
     CategoryCreateResult:
       type: object
       properties:
@@ -180,7 +168,6 @@ components:
           type: string
           format: date-time
           example: '2026-12-01T10:00:00Z'
-
     ItemCreateRequest:
       type: object
       required: [item_name, plu, entity_type]
@@ -194,8 +181,16 @@ components:
           example: SKU-0001
         entity_type:
           type: integer
-          description: Entity type. 1 is a product.
+          description: 'Item kind: 1 = product, 2 = modifier, 3 = modifier group, 4 = upsell, 5 = deal, 6 = variant, 7 = bundle. A plain product is 1.'
           example: 1
+          enum:
+            - 1
+            - 2
+            - 3
+            - 4
+            - 5
+            - 6
+            - 7
         owner_id:
           type: integer
           format: int64
@@ -217,7 +212,6 @@ components:
           example: https://example.com/images/sample-cola.jpg
         pricing:
           $ref: '#/components/schemas/Pricing'
-
     ItemUpdateRequest:
       type: object
       description: Send only the fields to change. Omitted fields are left unchanged.
@@ -240,7 +234,6 @@ components:
           example: https://example.com/images/sample-cola-2.jpg
         pricing:
           $ref: '#/components/schemas/Pricing'
-
     Pricing:
       type: object
       properties:
@@ -256,7 +249,6 @@ components:
           type: number
           format: double
           example: 25.0
-
     ItemListRequest:
       type: object
       properties:
@@ -307,7 +299,6 @@ components:
             status:
               type: integer
               enum: [1, 2, 3]
-
     ItemListResult:
       type: object
       properties:
@@ -332,7 +323,6 @@ components:
             is_admin_approval:
               type: boolean
               example: false
-
     ItemResult:
       type: object
       description: Item detail. Fields are returned as stored by the service.
@@ -341,14 +331,11 @@ components:
         item_uuid: 00000000-0000-4000-8000-000000000201
         item_name: Sample Cola 330ml
         entity_type: 1
-
     ItemCreated:
       type: object
       description: Shape of the created item response is not enumerated here.
       additionalProperties: true
       x-todo: 'Create response body for POST /item is not verified in this file. Only the status code (200) and envelope are confirmed.'
-
-  
 paths:
   /api/v1/catalog/category:
     post:
@@ -356,8 +343,7 @@ paths:
       operationId: catalog_createCategory
       summary: Create a category
       description: >-
-        Creates a category for the tenant from the request body. Also accepts sub_categories, product_ids
-        and tag_ids (not documented here). Call before creating items that map to it.
+        Creates a category for the tenant from the request body. Also accepts sub_categories, product_ids and tag_ids (not documented here). Call before creating items that map to it.
       parameters:
         - $ref: '#/components/parameters/AcceptLanguage'
       requestBody:
@@ -367,11 +353,11 @@ paths:
             schema:
               $ref: '#/components/schemas/CategoryCreateRequest'
             example:
-              type: product
+              type: parent
               category_name: Beverages
               category_name_lang:
                 en: Beverages
-              category_type: 1
+              category_type: 2
               owner_id: 1001
               description: Cold drinks and juices
               is_enabled: true
@@ -398,15 +384,13 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalError'
-
   /api/v1/catalog/item:
     post:
       tags: [catalog-setup-product]
       operationId: catalog_createItem
       summary: Create a product (item)
       description: >-
-        Creates an item. This file documents the product path only (entity_type 1). Map the item to a
-        category separately before it is shown to shoppers. Tax IDs are product-only and are not used here.
+        Creates an item. This file documents the product path only (entity_type 1). Map the item to a category separately before it is shown to shoppers. Tax IDs are product-only and are not used here.
       parameters:
         - $ref: '#/components/parameters/AcceptLanguage'
       requestBody:
@@ -448,7 +432,6 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalError'
-
   /api/v1/catalog/item/{id}:
     get:
       tags: [catalog-setup-product]
@@ -529,15 +512,13 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
-
   /api/v1/catalog/item/list:
     post:
       tags: [catalog-setup-product, catalog-customer-browse]
       operationId: catalog_listItems
       summary: List items with pagination and filters
       description: >-
-        Lists items for the tenant. The customer app calls this with entity_types [1],
-        is_want_only_items true and filters.item_ids to load product cards. Total is in meta.total_count.
+        Lists items for the tenant. The customer app calls this with entity_types [1], is_want_only_items true and filters.item_ids to load product cards. Total is in meta.total_count.
       parameters:
         - $ref: '#/components/parameters/AcceptLanguage'
       requestBody:

@@ -3,18 +3,7 @@ info:
   title: Dhaam User Profile Service API
   version: 1.0.0
   description: >-
-    Customer profile, customer addresses, customer login and OTP, and the store (merchant) login and
-    store setup calls used for admin test data. Served under /api/v1/users. Only routes that the customer
-    app calls, plus the store calls needed for admin setup, are documented here.
-    Auth: operations marked security [] need no token. All other operations need `Authorization: Bearer {{token}}`.
-    Language: Accept-Language en (default) or es, read by the handlers.
-    Ordering: call POST /otp/initiate first, then POST /otp/verify/{otptype} with the session and username
-    it returns (see x-todo on the initiate operation). Customer addresses: create, then update or delete by
-    address id.
-    Errors: the envelope is {success: false, error: {type, message, details}, meta}. Rate-limited routes
-    return 429 with {error: rate_limit_exceeded, message, retry_after} and a Retry-After header.
-    Pagination: none on these routes. Idempotency: none.
-    Source: dh-user-profile development (5a6e9d57). Customer app calls checked against live (b9fa15e). Outlet read (GET /api/v1/users/outlets/{id}) checked against live (b637d0ca).
+    Customer profile, customer addresses, customer login and OTP, and the store (merchant) login and store setup calls used for admin test data. Served under /api/v1/users. Only routes that the customer app calls, plus the store calls needed for admin setup, are documented here. Auth: operations marked security [] need no token. All other operations need `Authorization: Bearer {{token}}`. Language: Accept-Language en (default) or es, read by the handlers. Ordering: call POST /otp/initiate first, then POST /otp/verify/{otptype} with the session and username it returns (see x-todo on the initiate operation). Customer addresses: create, then update or delete by address id. Errors: the envelope is {success: false, error: {type, message, details}, meta}. Rate-limited routes return 429 with {error: rate_limit_exceeded, message, retry_after} and a Retry-After header. Pagination: none on these routes. Idempotency: none. Source: dh-user-profile development (5a6e9d57). Customer app calls checked against live (b9fa15e). Outlet read (GET /api/v1/users/outlets/{id}) checked against live (b637d0ca).
   x-source-commit: 5a6e9d57 (dh-user-profile development)
 servers:
   - url: "{{baseUrl}}"
@@ -41,8 +30,7 @@ paths:
       operationId: users_getCustomerProfile
       summary: Get a customer profile
       description: >-
-        Returns the profile of the customer with the given numeric user id. Requires a Bearer token.
-        The customer app calls this with its numeric user id from local storage.
+        Returns the profile of the customer with the given numeric user id. Requires a Bearer token. The customer app calls this with its numeric user id from local storage.
       security:
         - bearerAuth: []
       parameters:
@@ -79,9 +67,7 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
       x-todo: >-
-        The customer app (authService.ts) also calls GET /api/v1/users/customer/info?user_id=. No route matches
-        it: /customer/info resolves to this operation with id set to info. Confirm with the app team; do not
-        document that call as a route.
+        The customer app (authService.ts) also calls GET /api/v1/users/customer/info?user_id=. No route matches it: /customer/info resolves to this operation with id set to info. Confirm with the app team; do not document that call as a route.
   /api/v1/users/customer/info:
     put:
       tags:
@@ -89,9 +75,7 @@ paths:
       operationId: users_updateCustomerProfile
       summary: Update the customer's own profile
       description: >-
-        Updates the caller's own profile (full name, username, referral code, avatar, template fields). For a
-        non-admin caller, customer_id must be empty or equal to the caller's own id, or the call returns 401.
-        The customer app sends full_name and avatar_url here. Call after login.
+        Updates the caller's own profile (full name, username, referral code, avatar, template fields). For a non-admin caller, customer_id must be empty or equal to the caller's own id, or the call returns 401. The customer app sends full_name and avatar_url here. Call after login.
       security:
         - bearerAuth: []
       parameters:
@@ -131,10 +115,7 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
       x-todo: >-
-        The customer app's updateProfile sends profile_picture and identifier, and registerCustomer (authService.ts)
-        sends this same route with mobile, email, referral_code and device_info. UpdateProfileRequest has none of
-        those fields (it has avatar_url and referal_code, spelled as in the code). Unknown fields are ignored by
-        the bind, so those values are dropped. Confirm the intended contract with the app team.
+        The customer app's updateProfile sends profile_picture and identifier, and registerCustomer (authService.ts) sends this same route with mobile, email, referral_code and device_info. UpdateProfileRequest has none of those fields (it has avatar_url and referal_code, spelled as in the code). Unknown fields are ignored by the bind, so those values are dropped. Confirm the intended contract with the app team.
   /api/v1/users/customer/add-address:
     post:
       tags:
@@ -142,8 +123,7 @@ paths:
       operationId: users_addCustomerAddress
       summary: Add a customer address
       description: >-
-        Creates an address for the caller. Requires address_line_1, city and country. Latitude and longitude
-        are stored as sent (no range check in the validator).
+        Creates an address for the caller. Requires address_line_1, city and country. Latitude and longitude are stored as sent (no range check in the validator).
       security:
         - bearerAuth: []
       parameters:
@@ -192,9 +172,7 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
       x-todo: >-
-        The response echoes the input fields and does not return the new address id. The customer app's createAddress
-        reads result.data.address, which the backend never sends. Confirm whether the id should be returned.
-        The app also sends floor and landmark, which AddressReq does not have (ignored). The body user_id is
+        The response echoes the input fields and does not return the new address id. The customer app's createAddress reads result.data.address, which the backend never sends. Confirm whether the id should be returned. The app also sends floor and landmark, which AddressReq does not have (ignored). The body user_id is
   /api/v1/users/customer/addresses:
     get:
       tags:
@@ -202,8 +180,7 @@ paths:
       operationId: users_listCustomerAddresses
       summary: List the caller's addresses
       description: >-
-        Returns the caller's addresses. A customer always gets their own addresses. An admin or store role may
-        pass user_id to read another user's addresses in the same tenant.
+        Returns the caller's addresses. A customer always gets their own addresses. An admin or store role may pass user_id to read another user's addresses in the same tenant.
       security:
         - bearerAuth: []
       parameters:
@@ -256,8 +233,7 @@ paths:
       operationId: users_updateCustomerAddress
       summary: Update a customer address or set it as default
       description: >-
-        Updates one of the caller's addresses by address_id. Only the fields sent are changed. To make an address the
-        default, send is_default true. The customer app uses this one route for both edit and set-default.
+        Updates one of the caller's addresses by address_id. Only the fields sent are changed. To make an address the default, send is_default true. The customer app uses this one route for both edit and set-default.
       security:
         - bearerAuth: []
       parameters:
@@ -300,9 +276,7 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
       x-todo: >-
-        The app's setDefaultAddress sends user_id in the body. This operation's request type has no user_id field,
-        so it is ignored. The app's updateAddress also sends user_id, which this operation ignores. Confirm the
-        not-found and cross-user error types with the dh-user-profile team; they are not verified here.
+        The app's setDefaultAddress sends user_id in the body. This operation's request type has no user_id field, so it is ignored. The app's updateAddress also sends user_id, which this operation ignores. Confirm the not-found and cross-user error types with the dh-user-profile team; they are not verified here.
   /api/v1/users/customer/address/delete/{id}:
     post:
       tags:
@@ -403,9 +377,7 @@ paths:
       operationId: users_requestContactChangeOtp
       summary: Request an OTP to change the customer email or phone
       description: >-
-        Sends an OTP to the new email or phone so the caller can change it. Then call the verify operation with
-        the returned session. This operation sends a message to the customer's new contact, so it is rate-limited
-        (OTP initiate limit).
+        Sends an OTP to the new email or phone so the caller can change it. Then call the verify operation with the returned session. This operation sends a message to the customer's new contact, so it is rate-limited (OTP initiate limit).
       x-security-note: Sends an OTP by email or SMS. Rate-limited per identifier. Do not use real contacts in tests.
       security:
         - bearerAuth: []
@@ -466,8 +438,7 @@ paths:
       operationId: users_verifyContactChangeOtp
       summary: Verify the OTP for an email or phone change
       description: >-
-        Verifies the OTP sent by the change operation and completes the change. Call it with the session and
-        cognito_username from the change response.
+        Verifies the OTP sent by the change operation and completes the change. Call it with the session and cognito_username from the change response.
       security:
         - bearerAuth: []
       parameters:
@@ -524,10 +495,7 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
       x-todo: >-
-        The app's confirmPasswordChange posts new_password and confirm_password to this operation. VerifyOtpRequest
-        has no such fields. Password change uses POST /otp/verify/password_change. Confirm with the app team. The
-        customer app also sends otp_type phone_change for phone changes; the accepted otp_type values are not
-        enumerated in the code reviewed.
+        The app's confirmPasswordChange posts new_password and confirm_password to this operation. VerifyOtpRequest has no such fields. Password change uses POST /otp/verify/password_change. Confirm with the app team. The customer app also sends otp_type phone_change for phone changes; the accepted otp_type values are not enumerated in the code reviewed.
   /api/v1/users/otp/initiate:
     post:
       tags:
@@ -535,8 +503,7 @@ paths:
       operationId: users_initiateOtp
       summary: Start an OTP for signup, login or password change
       description: >-
-        Starts an OTP challenge for an email or phone identifier. Returns 201 when a code is sent. For a login
-        step that sends no code, it returns 200 with login_methods. Public, no token is needed. Rate-limited.
+        Starts an OTP challenge for an email or phone identifier. Returns 201 when a code is sent. For a login step that sends no code, it returns 200 with login_methods. Public, no token is needed. Rate-limited.
       x-security-note: Sends an OTP by email or SMS. Rate-limited. Do not use real contacts in tests.
       security: []
       parameters:
@@ -598,10 +565,7 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
       x-todo: >-
-        Mismatch: the app's initiateOTP (authService.ts) reads data.session and data.username from this response, but
-        the handler returns only the OtpInitiateResponse struct (type and login_methods). Verify the usecase output
-        before the QA tests assume a session. The DTO also marks device_info as required, while the app sends it as
-        optional. The type field's allowed values are not enumerated in the code reviewed.
+        Mismatch: the app's initiateOTP (authService.ts) reads data.session and data.username from this response, but the handler returns only the OtpInitiateResponse struct (type and login_methods). Verify the usecase output before the QA tests assume a session. The DTO also marks device_info as required, while the app sends it as optional. The type field's allowed values are not enumerated in the code reviewed.
   /api/v1/users/otp/verify/{otptype}:
     post:
       tags:
@@ -609,9 +573,7 @@ paths:
       operationId: users_verifyOtp
       summary: Verify an OTP for signup, login or password change
       description: >-
-        Verifies the OTP from the initiate operation. The request body type depends on otptype: signup uses the
-        signup body, login and password_change use the login body. A wrong OTP returns 403 with details.session, a
-        new session to use for the retry. Call after /otp/initiate.
+        Verifies the OTP from the initiate operation. The request body type depends on otptype: signup uses the signup body, login and password_change use the login body. A wrong OTP returns 403 with details.session, a new session to use for the retry. Call after /otp/initiate.
       security:
         - bearerAuth: []
       parameters:
@@ -682,8 +644,7 @@ paths:
       operationId: users_customerLogin
       summary: Customer login with email and password
       description: >-
-        Logs a customer in with email and password for a tenant. Public, no token is needed. Returns
-        tokens, or a 2FA challenge (2fa_required, session) when 2FA applies. Rate-limited.
+        Logs a customer in with email and password for a tenant. Public, no token is needed. Returns tokens, or a 2FA challenge (2fa_required, session) when 2FA applies. Rate-limited.
       x-security-note: Credential endpoint. Rate-limited. Use only synthetic test accounts.
       security: []
       parameters:
@@ -730,8 +691,7 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
       x-todo: >-
-        The customer app's customerLogin sends role, not role_id; it also sends no device_info by default. The DTO
-        requires device_info. Confirm the exact body the app sends before QA uses it.
+        The customer app's customerLogin sends role, not role_id; it also sends no device_info by default. The DTO requires device_info. Confirm the exact body the app sends before QA uses it.
   /api/v1/users/customer/logout:
     post:
       tags:
@@ -780,8 +740,7 @@ paths:
       operationId: users_resetCustomerPassword
       summary: Set a new customer password after an OTP
       description: >-
-        Sets a new password using the session from the password_change OTP flow. Public. Both password
-        fields must match. Rate-limited.
+        Sets a new password using the session from the password_change OTP flow. Public. Both password fields must match. Rate-limited.
       x-security-note: Credential endpoint. Rate-limited. Use only synthetic test accounts.
       security: []
       parameters:
@@ -829,8 +788,7 @@ paths:
       operationId: users_storeLogin
       summary: Store (merchant) login for a bearer token
       description: >-
-        Logs a store (merchant) user in with email and password and returns tokens. Used to get a Bearer token for
-        admin test-data setup. Public, no token is needed. Rate-limited.
+        Logs a store (merchant) user in with email and password and returns tokens. Used to get a Bearer token for admin test-data setup. Public, no token is needed. Rate-limited.
       x-security-note: Credential endpoint. Rate-limited. Use only synthetic test accounts; never store the returned token in a spec.
       security: []
       parameters:
@@ -883,9 +841,7 @@ paths:
       operationId: users_registerStore
       summary: Register a store (merchant) with login credentials
       description: >-
-        Creates a store user with a login password, a store profile and its business type. This is the only store
-        creation call in these services that sets a login password, so it is the one admin test setup needs before
-        /store/login. Public, no token is needed. Rate-limited.
+        Creates a store user with a login password, a store profile and its business type. This is the only store creation call in these services that sets a login password, so it is the one admin test setup needs before /store/login. Public, no token is needed. Rate-limited.
       x-security-note: Creates a store account. Use only synthetic data in tests and clean up test stores.
       x-todo: Confirm that the response includes the store id that POST /api/v1/profile/outlets requires.
       security: []
@@ -949,9 +905,7 @@ paths:
       operationId: users_updateStoreInfo
       summary: Update basic store details
       description: >-
-        Updates the basic details of a store: name, description, address, business type, business categories and logo.
-        A merchant edits only its own store. An admin may pass user_id. Requires a Bearer token. Store settings
-        (preferences, analytics, service-area, tags, web domain) are not documented here.
+        Updates the basic details of a store: name, description, address, business type, business categories and logo. A merchant edits only its own store. An admin may pass user_id. Requires a Bearer token. Store settings (preferences, analytics, service-area, tags, web domain) are not documented here.
       security:
         - bearerAuth: []
       parameters:
@@ -1010,11 +964,7 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
       x-todo: >-
-        Also used for store settings in the storefront. This operation documents only the basic detail fields. Other
-        fields in the same request body (preferences, is_sponsored, show_analytics_enabled, service_area_enforcement_enabled,
-        add_user_tags, delete_user_tags, merchant_access_to_user_tags_enabled, web_domain, password, store_id) are
-        settings or account fields and are excluded. Whether business_categories is needed for an orderable store is
-        not confirmed.
+        Also used for store settings in the storefront. This operation documents only the basic detail fields. Other fields in the same request body (preferences, is_sponsored, show_analytics_enabled, service_area_enforcement_enabled, add_user_tags, delete_user_tags, merchant_access_to_user_tags_enabled, web_domain, password, store_id) are settings or account fields and are excluded. Whether business_categories is needed for an orderable store is not confirmed.
   /api/v1/users/outlets/{id}:
     get:
       tags:
@@ -1022,11 +972,7 @@ paths:
       operationId: users_getOutletDetail
       summary: Get an outlet with its opening hours
       description: >-
-        Returns one outlet with its opening hours: delivery_schedules (delivery_mode 1 rows) and pickup_schedules
-        (delivery_mode 2 rows). A list is omitted when the outlet has no rows of that mode. Hours are written with
-        POST /api/v1/profile/outlets and PUT /api/v1/profile/outlets/{id} (profile spec). The outlet must belong to the
-        store resolved from the caller and store_uuid, or the call returns 403. Requires a Bearer token.
-        The edge sets the identity headers; clients must not send them.
+        Returns one outlet with its opening hours: delivery_schedules (delivery_mode 1 rows) and pickup_schedules (delivery_mode 2 rows). A list is omitted when the outlet has no rows of that mode. Hours are written with POST /api/v1/profile/outlets and PUT /api/v1/profile/outlets/{id} (profile spec). The outlet must belong to the store resolved from the caller and store_uuid, or the call returns 403. Requires a Bearer token. The edge sets the identity headers; clients must not send them.
       security:
         - bearerAuth: []
       parameters:
@@ -1071,8 +1017,7 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
       x-todo: >-
-        A UUID that matches no outlet is reported by the repository as a database error, so the call returns 500
-        rather than 404. Confirm the intended status before QA asserts on it.
+        A UUID that matches no outlet is reported by the repository as a database error, so the call returns 500 rather than 404. Confirm the intended status before QA asserts on it.
 components:
   securitySchemes:
     bearerAuth:
@@ -1215,8 +1160,13 @@ components:
           example: Test Device
         device_type:
           type: string
-          description: ios, android, web or desktop.
+          description: web, ios, android or desktop.
           example: web
+          enum:
+            - web
+            - ios
+            - android
+            - desktop
         os_version:
           type: string
           example: "1.0"
@@ -1520,10 +1470,18 @@ components:
         otp_type:
           type: string
           example: email_change
+          description: email_change to change the email, phone_change to change the phone.
+          enum:
+            - email_change
+            - phone_change
         provider_type:
           type: string
-          description: ses for email; sms or sns for phone.
+          description: 'Who delivers the code: ses = email, sms = text message, whatsapp = WhatsApp message. Use ses with an email identifier, sms or whatsapp with a phone.'
           example: ses
+          enum:
+            - ses
+            - sms
+            - whatsapp
         country_code:
           type: string
           description: Required for phone.
@@ -1550,6 +1508,10 @@ components:
         otp_type:
           type: string
           example: email_change
+          description: The same otp_type as the change request.
+          enum:
+            - email_change
+            - phone_change
         identifier:
           type: string
           example: new.customer@example.com
@@ -1572,6 +1534,12 @@ components:
       properties:
         platform:
           type: string
+          description: 'Where the request comes from: web, android or ios.'
+          enum:
+            - web
+            - android
+            - ios
+          example: web
         identifier:
           type: string
           example: test.customer@example.com
@@ -1597,15 +1565,26 @@ components:
           example: Test Customer
         type:
           type: string
-          description: OTP purpose, for example signup, login or password_change.
-          example: signup
+          description: 'Why the code is sent: signup, login, password_change, email_change, phone_change or enable2fa.'
+          example: login
+          enum:
+            - signup
+            - login
+            - password_change
+            - email_change
+            - phone_change
+            - enable2fa
         otp_challenge:
           type: boolean
           example: false
         provider_type:
           type: string
-          description: For email, ses. For phone, sms or whatsapp.
+          description: 'Who delivers the code: ses = email, sms = text message, whatsapp = WhatsApp message. Use ses with an email identifier, sms or whatsapp with a phone.'
           example: ses
+          enum:
+            - ses
+            - sms
+            - whatsapp
         client_id:
           type: string
         method:
@@ -1761,6 +1740,14 @@ components:
         verification_status:
           type: integer
           format: int64
+          description: 'Verification: 0 = not verified, 1 = email verified, 2 = phone verified, 3 = email and phone verified, 4 = verified by an admin.'
+          enum:
+            - 0
+            - 1
+            - 2
+            - 3
+            - 4
+          example: 1
         is_email_verified:
           type: boolean
         is_phone_verified:
@@ -1868,7 +1855,8 @@ components:
           example: "+1"
         business_type:
           type: string
-          example: "1"
+          example: 1
+          description: 'Business type id, from the storefront config query `businessTypes`, for example 1 = restaurant, 2 = grocery, 3 = cafe, 4 = pharmacy, 5 = food, 6 = butcher, 7 = retail, 8 = salon. Ids are per tenant: read them from the config query.'
         address:
           type: string
           example: 1 Example Plaza, Testville
@@ -2001,8 +1989,7 @@ components:
     OutletHoursDetail:
       type: object
       description: >-
-        Outlet fields and opening hours. Only the outlet and hours fields are listed; other outlet fields in the
-        response are not documented here.
+        Outlet fields and opening hours. Only the outlet and hours fields are listed; other outlet fields in the response are not documented here.
       properties:
         outlet_id:
           type: integer
@@ -2052,8 +2039,16 @@ components:
           example: 4001
         day_of_week:
           type: integer
-          description: ISO weekday, 1 is Monday and 7 is Sunday.
+          description: 'Day of the week, ISO numbering: 1 = Monday, 2 = Tuesday, 3 = Wednesday, 4 = Thursday, 5 = Friday, 6 = Saturday, 7 = Sunday.'
           example: 1
+          enum:
+            - 1
+            - 2
+            - 3
+            - 4
+            - 5
+            - 6
+            - 7
         slot_number:
           type: integer
           example: 1
@@ -2068,12 +2063,17 @@ components:
           example: false
         schedule_type:
           type: integer
-          description: 1 is regular.
+          description: 'Schedule kind: 1 = regular opening hours.'
           example: 1
+          enum:
+            - 1
         delivery_mode:
           type: integer
-          description: 1 is delivery, 2 is pickup.
+          description: 1 = delivery hours, 2 = pickup hours.
           example: 1
+          enum:
+            - 1
+            - 2
         holiday_id:
           type: integer
           format: int64

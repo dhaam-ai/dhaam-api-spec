@@ -3,18 +3,7 @@ info:
   title: Dhaam Profile Service API
   version: 1.0.0
   description: >-
-    Outlet setup calls of the profile service, served under /api/v1/profile. Only the calls used to make a
-    store's outlet orderable (hours and delivery basics) are documented here. Settings,
-    managers, reviews, templates, favourites and internal routes are out of scope for this file.
-    Auth: send `Authorization: Bearer {{token}}` on each operation that needs it.
-    Language: this service reads the lang query parameter (default en), not Accept-Language.
-    Ordering: create the store with POST /api/v1/users/store/register (user-profile spec) first, then add outlets (POST /api/v1/profile/outlets) for it,
-    then adjust outlet hours and delivery with PUT /api/v1/profile/outlets/{id}. Store login is not on this service; see the user-profile spec.
-    Errors: the envelope is {success: false, error: {type, message, details}, meta}.
-    Pagination: none on these calls. Idempotency: none.
-    Hours: an outlet's opening hours are the delivery_schedules and pickup_schedules lists, written here and
-    read back by GET /api/v1/users/outlets/{id} (user-profile spec). Each row is one open window for one day.
-    Source: dh-profile live (4b9f6586). Routes are mounted at the root, with no /api/v1 prefix in code.
+    Outlet setup calls of the profile service, served under /api/v1/profile. Only the calls used to make a store's outlet orderable (hours and delivery basics) are documented here. Settings, managers, reviews, templates, favourites and internal routes are out of scope for this file. Auth: send `Authorization: Bearer {{token}}` on each operation that needs it. Language: this service reads the lang query parameter (default en), not Accept-Language. Ordering: create the store with POST /api/v1/users/store/register (user-profile spec) first, then add outlets (POST /api/v1/profile/outlets) for it, then adjust outlet hours and delivery with PUT /api/v1/profile/outlets/{id}. Store login is not on this service; see the user-profile spec. Errors: the envelope is {success: false, error: {type, message, details}, meta}. Pagination: none on these calls. Idempotency: none. Hours: an outlet's opening hours are the delivery_schedules and pickup_schedules lists, written here and read back by GET /api/v1/users/outlets/{id} (user-profile spec). Each row is one open window for one day. Source: dh-profile live (4b9f6586). Routes are mounted at the root, with no /api/v1 prefix in code.
   x-source-commit: 4b9f6586 (dh-profile live)
 servers:
   - url: "{{baseUrl}}"
@@ -29,11 +18,7 @@ paths:
       operationId: profile_addOutlet
       summary: Add an outlet to a store
       description: >-
-        Adds an outlet to a store with its location, delivery schedules (hours), pickup schedules and delivery basics.
-        Requires a Bearer token. Schedules are optional here; send them to set the opening hours. The response
-        confirms creation and does not return the new outlet id. Use the store id of the store to make orderable. Settings in the same request body (order settings,
-        notification settings, business settings, delivery surge, holiday overrides and region ids) are out of scope
-        and not documented here.
+        Adds an outlet to a store with its location, delivery schedules (hours), pickup schedules and delivery basics. Requires a Bearer token. Schedules are optional here; send them to set the opening hours. The response confirms creation and does not return the new outlet id. Use the store id of the store to make orderable. Settings in the same request body (order settings, notification settings, business settings, delivery surge, holiday overrides and region ids) are out of scope and not documented here.
       security:
         - bearerAuth: []
       parameters:
@@ -96,10 +81,7 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
       x-todo: >-
-        The new outlet id is not returned; read it back by listing outlets for the store, which this file does not
-        document. Required fields are not confirmed: the request struct has no validate tags, so the minimum set is
-        not known. Delivery provider keys (api_key_charge, api_key_timing) are excluded from the example and the
-        schema on purpose. Only basic outlet fields are documented here.
+        The new outlet id is not returned; read it back by listing outlets for the store, which this file does not document. Required fields are not confirmed: the request struct has no validate tags, so the minimum set is not known. Delivery provider keys (api_key_charge, api_key_timing) are excluded from the example and the schema on purpose. Only basic outlet fields are documented here.
   /api/v1/profile/outlets/{id}:
     put:
       tags:
@@ -107,11 +89,7 @@ paths:
       operationId: profile_updateOutlet
       summary: Update an outlet's details, hours and delivery basics
       description: >-
-        Updates an outlet. Send only the fields to change; every field is optional. Requires a Bearer token.
-        Hours replace by mode: sending delivery_schedules replaces the delivery rows (delivery_mode 1) and sending
-        pickup_schedules replaces the pickup rows (delivery_mode 2). A list that is omitted or empty leaves that mode's
-        rows as they are. Settings in the same request body (order settings, notification settings, business settings,
-        delivery surge, holiday overrides and region ids) are out of scope.
+        Updates an outlet. Send only the fields to change; every field is optional. Requires a Bearer token. Hours replace by mode: sending delivery_schedules replaces the delivery rows (delivery_mode 1) and sending pickup_schedules replaces the pickup rows (delivery_mode 2). A list that is omitted or empty leaves that mode's rows as they are. Settings in the same request body (order settings, notification settings, business settings, delivery surge, holiday overrides and region ids) are out of scope.
       security:
         - bearerAuth: []
       parameters:
@@ -169,8 +147,7 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
       x-todo: >-
-        The handler returns 400 when the outlet id is empty. Not-found and cross-tenant error types are not verified; the
-        usecase returns them. The EditOutletRequest fields are all optional, so the minimum body is not fixed here.
+        The handler returns 400 when the outlet id is empty. Not-found and cross-tenant error types are not verified; the usecase returns them. The EditOutletRequest fields are all optional, so the minimum body is not fixed here.
 components:
   securitySchemes:
     bearerAuth:
@@ -232,8 +209,7 @@ components:
     OutletRequest:
       type: object
       description: >-
-        Outlet fields for create and update. Only the basic fields are documented: name, store, location, hours
-        (schedules) and delivery basics. Other fields in the same JSON body are settings and are out of scope.
+        Outlet fields for create and update. Only the basic fields are documented: name, store, location, hours (schedules) and delivery basics. Other fields in the same JSON body are settings and are out of scope.
       properties:
         outlet_name:
           type: string
@@ -277,17 +253,24 @@ components:
     OutletSchedule:
       type: object
       description: >-
-        One open window for one day. A day with several windows has one row per window (slot_number 1, 2, ...).
-        A day with no rows is closed. A closed day can be sent as one row with is_closed true.
+        One open window for one day. A day with several windows has one row per window (slot_number 1, 2, ...). A day with no rows is closed. A closed day can be sent as one row with is_closed true.
       required:
         - day_of_week
       properties:
         day_of_week:
           type: integer
-          description: ISO weekday, 1 is Monday and 7 is Sunday.
+          description: 'Day of the week, ISO numbering: 1 = Monday, 2 = Tuesday, 3 = Wednesday, 4 = Thursday, 5 = Friday, 6 = Saturday, 7 = Sunday.'
           minimum: 1
           maximum: 7
           example: 1
+          enum:
+            - 1
+            - 2
+            - 3
+            - 4
+            - 5
+            - 6
+            - 7
         slot_number:
           type: integer
           description: Position of the window within the day, starting at 1.
@@ -306,8 +289,10 @@ components:
           example: false
         schedule_type:
           type: integer
-          description: Schedule kind. 1 is regular, the only value defined in the code reviewed.
+          description: 'Schedule kind: 1 = regular opening hours.'
           example: 1
+          enum:
+            - 1
         delivery_mode:
           type: integer
           description: 1 is delivery, 2 is pickup. If omitted, the list it is sent in sets the default (delivery_schedules 1, pickup_schedules 2).

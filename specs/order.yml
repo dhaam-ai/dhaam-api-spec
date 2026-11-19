@@ -20,10 +20,8 @@ info:
     - Request id: the service returns `X-Request-Id` and `meta.request_id`. A valid incoming `X-Request-Id` is reused.
     - Localisation: "`Accept-Language: es` returns Spanish messages. Any other value returns English."
   x-source-commit: "ca54311 (dh-order-api development); payment operations from 720f685 (dh-extensions-api development); app call sites from b9fa15e (dh-hyperlocal-customer-app-react live)"
-
 servers:
   - url: "{{baseUrl}}"
-
 tags:
   - name: orders-cart
     description: Cart / quotation (fare estimate). Call before creating an order.
@@ -33,17 +31,14 @@ tags:
     description: Customer order list, detail, cancel and cancellation preview.
   - name: orders-payment
     description: Payment methods available to the customer.
-
 security:
   - bearerAuth: []
-
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
-
   parameters:
     AcceptLanguage:
       name: Accept-Language
@@ -97,7 +92,6 @@ components:
       schema:
         type: string
         example: "order,item"
-
   schemas:
     SuccessEnvelope:
       type: object
@@ -115,7 +109,6 @@ components:
               type: string
               example: "{{requestId}}"
           additionalProperties: true
-
     ErrorResponse:
       type: object
       required: [success, error]
@@ -142,7 +135,6 @@ components:
             request_id:
               type: string
           additionalProperties: true
-
     QuoteItem:
       type: object
       description: |
@@ -158,8 +150,16 @@ components:
           format: uuid
         entity_type:
           type: integer
-          description: "Entity type code. The customer app uses 1 = product, 2 = modifier, 3 = modifier group, 4 = upsell, 5 = deal, 6 = variant, 7 = bundle. x-todo: confirm these codes against the backend constants (leaf = product, deal, modifier; container = variant, upsell, bundle, modifier group)."
+          description: 'Item kind: 1 = product, 2 = modifier, 3 = modifier group, 4 = upsell, 5 = deal, 6 = variant, 7 = bundle.'
           example: 1
+          enum:
+            - 1
+            - 2
+            - 3
+            - 4
+            - 5
+            - 6
+            - 7
         quantity:
           type: integer
           minimum: 1
@@ -196,7 +196,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/QuoteAttachedNode'
-
     QuoteAttachedNode:
       type: object
       description: A nested cart node (modifier, product in an upsell/bundle, variant, and so on). Its `id` is required.
@@ -215,6 +214,16 @@ components:
           type: integer
         entity_type:
           type: integer
+          description: 'Item kind: 1 = product, 2 = modifier, 3 = modifier group, 4 = upsell, 5 = deal, 6 = variant, 7 = bundle.'
+          enum:
+            - 1
+            - 2
+            - 3
+            - 4
+            - 5
+            - 6
+            - 7
+          example: 2
         is_selected:
           type: boolean
         products:
@@ -233,7 +242,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/QuoteAttachedNode'
-
     DeliveryAddress:
       type: object
       description: Optional structured address. The flat `address` field is the one that is required.
@@ -268,7 +276,6 @@ components:
           type: string
         delivery_note_text:
           type: string
-
     QuoteRequest:
       type: object
       x-todo: "The customer app's payload type marks customer_id, outlet_id and timezone as optional, and also sends store_id, deliver_time, delivery_charge, flat_discount, expires_at and order_source. The backend requires customer_id, outlet_id and timezone, ignores store_id (it is set from the caller's role), and ignores fields it does not declare. Confirm whether the app always sends the required three before publishing."
@@ -306,13 +313,21 @@ components:
         delivery_mode:
           type: integer
           minimum: 0
-          description: "Required. 0 = ASAP, 1 = Scheduled (per the app; x-todo: confirm codes against constants)."
-          example: 0
+          description: 'How the order reaches the customer: 1 = home delivery, 2 = pickup, 3 = takeaway, 4 = dine-in. The ids are the tenant''s delivery modes (storefront config query `deliveryModes`); a store accepts only the modes it has switched on. The customer app sends 1 by default.'
+          example: 1
+          enum:
+            - 1
+            - 2
+            - 3
+            - 4
         order_mode:
           type: integer
           minimum: 0
-          description: "0 = Delivery, 1 = Pickup (x-todo: confirm against constants)."
-          example: 0
+          description: 'When the order is wanted: 2 = now (on demand), 1 = scheduled (then also send `scheduled_for`). The customer app sends 2 by default.'
+          example: 2
+          enum:
+            - 1
+            - 2
         order_source:
           type: integer
           minimum: 0
@@ -323,8 +338,12 @@ components:
         payment_via:
           type: integer
           minimum: 0
-          description: Payment mode id, for example 1 = Cash, 2 = Cybersource, 3 = Wallet. Optional at quote time, required before POST /create.
-          example: 2
+          description: 'Payment method: 1 = cash on delivery, 2 = card (secure card payment), 3 = wallet. Optional on a quote; required before the order is created. Use a method the customer has (payment modes call).'
+          example: 1
+          enum:
+            - 1
+            - 2
+            - 3
         wallet_money:
           type: number
           format: double
@@ -363,7 +382,6 @@ components:
           minItems: 1
           items:
             $ref: '#/components/schemas/QuoteItem'
-
     CreateOrderRequest:
       type: object
       required: [quotation_id, customer_id]
@@ -420,7 +438,6 @@ components:
             template_data:
               type: object
               additionalProperties: true
-
     OrderStatusUpdateRequest:
       type: object
       description: |
@@ -435,8 +452,10 @@ components:
           format: int64
           minimum: 1
           maximum: 10
-          description: Target status. For a customer cancel, 9 (CANCELLED).
+          description: 'Target status. A customer can only cancel: send 9 (Cancelled). Order status code: 1 = New, 2 = Accepted, 3 = Assigned, 4 = Processed, 5 = Order ready, 6 = Pickup, 7 = Dispatched, 8 = Delivered, 9 = Cancelled, 10 = Deleted, 11 = Pickup started.'
           example: 9
+          enum:
+            - 9
         order_id:
           type: string
           description: Accepted in the body but ignored; the path id is used.
@@ -450,8 +469,12 @@ components:
           x-todo: "The app sends refund_amount inside metadata and may send an empty string. The backend binds this field as a number at the top level. Confirm the app's payload shape before publishing."
         refund_method:
           type: string
-          description: Sent inside metadata by the customer app. Not read by the backend.
+          description: 'Where a refund goes: Source = back to the original payment, Wallet = to the customer''s wallet. Sent inside metadata by the customer app.'
           x-todo: "Confirm whether the backend reads refund_method. The customer cancel path uses the cash/wallet rules documented above."
+          enum:
+            - Source
+            - Wallet
+          example: Source
         metadata:
           type: object
           additionalProperties: true
@@ -460,7 +483,6 @@ components:
               type: string
               description: Cancel reason. Required for a customer cancel.
               example: "Changed my mind"
-
     OrderListRequest:
       type: object
       required: [current_page, limit]
@@ -500,14 +522,26 @@ components:
           $ref: '#/components/schemas/OrderListFilters'
         sort:
           $ref: '#/components/schemas/OrderListSort'
-
     OrderListFilters:
       type: object
       x-todo: "The customer app sends filters named payment_mode_id, order_mode_id, delivery_mode_id, platform_id, search and user_id. The backend reads payment_modes, delivery_mode, order_type, platform_used, search_text, search_fields and ignores user_id. The app's names are not read by the backend. Confirm before publishing; the documented names below are the ones the backend reads."
       properties:
         status:
           type: integer
-          description: Single order_status to match.
+          description: 'Single order status to match. Order status code: 1 = New, 2 = Accepted, 3 = Assigned, 4 = Processed, 5 = Order ready, 6 = Pickup, 7 = Dispatched, 8 = Delivered, 9 = Cancelled, 10 = Deleted, 11 = Pickup started.'
+          enum:
+            - 1
+            - 2
+            - 3
+            - 4
+            - 5
+            - 6
+            - 7
+            - 8
+            - 9
+            - 10
+            - 11
+          example: 1
         excluded_status_ids:
           type: array
           items:
@@ -520,6 +554,14 @@ components:
           type: array
           items:
             type: integer
+            enum:
+              - 1
+              - 2
+              - 3
+              - 4
+          description: 'Delivery modes to match: 1 = home delivery, 2 = pickup, 3 = takeaway, 4 = dine-in.'
+          example:
+            - 1
         order_type:
           type: array
           items:
@@ -547,7 +589,6 @@ components:
           items:
             type: integer
             enum: [1, 2, 3, 4, 5, 6]
-
     OrderListSort:
       type: object
       properties:
@@ -559,7 +600,6 @@ components:
           type: integer
           enum: [0, 1]
           description: "1 = ASC. Any other value, including the default 0, is DESC."
-
     OrderResp:
       type: object
       description: |
@@ -592,6 +632,20 @@ components:
           type: string
         order_status:
           type: integer
+          description: 'Order status code: 1 = New, 2 = Accepted, 3 = Assigned, 4 = Processed, 5 = Order ready, 6 = Pickup, 7 = Dispatched, 8 = Delivered, 9 = Cancelled, 10 = Deleted, 11 = Pickup started.'
+          enum:
+            - 1
+            - 2
+            - 3
+            - 4
+            - 5
+            - 6
+            - 7
+            - 8
+            - 9
+            - 10
+            - 11
+          example: 1
         order_status_name:
           type: string
         order_source:
@@ -604,10 +658,23 @@ components:
           type: string
         delivery_mode:
           type: integer
+          description: 'How the order reaches the customer: 1 = home delivery, 2 = pickup, 3 = takeaway, 4 = dine-in. The ids are the tenant''s delivery modes (storefront config query `deliveryModes`); a store accepts only the modes it has switched on. The customer app sends 1 by default.'
+          enum:
+            - 1
+            - 2
+            - 3
+            - 4
+          example: 1
         delivery_mode_name:
           type: string
         payment_mode:
           type: integer
+          description: 'Payment method: 1 = cash on delivery, 2 = card, 3 = wallet.'
+          enum:
+            - 1
+            - 2
+            - 3
+          example: 1
         payment_mode_name:
           type: string
         cart_total:
@@ -662,7 +729,6 @@ components:
           type: string
         customer_notes:
           type: string
-
     CreateOrderResponse:
       type: object
       properties:
@@ -686,7 +752,6 @@ components:
               type: integer
             estimated_delivery_time_mins:
               type: integer
-
     QuoteBreakdown:
       type: object
       properties:
@@ -700,8 +765,20 @@ components:
           format: double
         delivery_mode:
           type: integer
+          description: 'How the order reaches the customer: 1 = home delivery, 2 = pickup, 3 = takeaway, 4 = dine-in. The ids are the tenant''s delivery modes (storefront config query `deliveryModes`); a store accepts only the modes it has switched on. The customer app sends 1 by default.'
+          enum:
+            - 1
+            - 2
+            - 3
+            - 4
+          example: 1
         order_mode:
           type: integer
+          description: 'When the order is wanted: 2 = now (on demand), 1 = scheduled (then also send `scheduled_for`). The customer app sends 2 by default.'
+          enum:
+            - 1
+            - 2
+          example: 2
         order_source:
           type: integer
         scheduled_for:
@@ -709,6 +786,12 @@ components:
           format: date-time
         payment_via:
           type: integer
+          description: 'Payment method: 1 = cash on delivery, 2 = card (secure card payment), 3 = wallet. Optional on a quote; required before the order is created. Use a method the customer has (payment modes call).'
+          enum:
+            - 1
+            - 2
+            - 3
+          example: 1
         wallet_money:
           type: number
           format: double
@@ -769,7 +852,6 @@ components:
             additionalProperties: true
           description: "Priced items. x-todo: type each item from QuoteItemResponse."
       x-todo: "Breakdown has more keys than listed here. Check QuoteBreakdown in app/handler/rest/dto/order/quote_response.go."
-
     QuoteResponse:
       type: object
       properties:
@@ -811,7 +893,6 @@ components:
           additionalProperties: true
         has_unavailable_items:
           type: boolean
-
     CancellationPreview:
       type: object
       properties:
@@ -819,6 +900,8 @@ components:
           type: string
         current_status:
           type: string
+          description: 'The order''s current status, as text (for example New or Accepted). The numeric codes are in the order''s order_status: 1 = New, 2 = Accepted, 3 = Assigned, 4 = Processed, 5 = Order ready, 6 = Pickup, 7 = Dispatched, 8 = Delivered, 9 = Cancelled, 10 = Deleted, 11 = Pickup started.'
+          example: New
         current_status_id:
           type: integer
         minutes_in_status:
@@ -841,7 +924,6 @@ components:
           type: object
           nullable: true
           additionalProperties: true
-
     OrderDetail:
       type: object
       properties:
@@ -876,7 +958,6 @@ components:
           type: object
           additionalProperties: true
           description: "x-todo: CardInformation exposes card metadata. Confirm whether it belongs in the customer contract."
-
     UserPaymentMode:
       type: object
       properties:
@@ -886,6 +967,12 @@ components:
           type: integer
         gateway_type:
           type: integer
+          description: 'Payment method: 1 = cash on delivery, 2 = card, 3 = wallet. Send this value as `payment_via` on the quote.'
+          enum:
+            - 1
+            - 2
+            - 3
+          example: 1
         name:
           type: string
         is_active:
@@ -895,14 +982,12 @@ components:
         updated_at:
           type: string
           format: date-time
-
     PaymentPayload:
       type: object
       description: |
         Request body for payment calls. The customer app sends these shapes. The backend contract is in dh-extensions-api and was not verified field by field here.
       additionalProperties: true
       x-todo: "Verify the request fields against dh-extensions-api before publishing. Known app fields for recharge: customer_id, country_iso, billing_address, device_information {fingerprint_session_id, device_type}, authenticationTransactionId, token, amount, tax_amount. Add-card and authenticate payloads are not listed here."
-
     WalletRecharge:
       type: object
       x-todo: "Recharge is a wallet top-up with a saved card (gateway 2 in the app). Response shape not verified against dh-extensions-api."
@@ -933,7 +1018,6 @@ components:
         tax_amount:
           type: string
           example: "0.00"
-
     WalletTaxRequest:
       type: object
       required: [amount, country]
@@ -945,7 +1029,6 @@ components:
         country:
           type: string
           example: "IN"
-
     PaymentModesResponse:
       type: object
       properties:
@@ -955,7 +1038,6 @@ components:
             $ref: '#/components/schemas/UserPaymentMode'
         total:
           type: integer
-
 paths:
   /api/v1/orders/quote:
     post:
@@ -981,23 +1063,65 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/QuoteRequest'
-            example:
-              customer_id: "00000000-0000-4000-8000-000000000001"
-              outlet_id: "00000000-0000-4000-8000-000000000002"
-              address: "Synthetic Street 1, Testville"
-              latitude: 12.9716
-              longitude: 77.5946
-              delivery_mode: 0
-              order_mode: 0
-              payment_via: 2
-              timezone: Asia/Kolkata
-              items:
-                - item_id: "00000000-0000-4000-8000-000000000003"
-                  menu_id: "00000000-0000-4000-8000-000000000004"
-                  entity_type: 1
-                  quantity: 2
-                  unit_price: 250.00
-                  notes: ""
+            examples:
+              deliver_now_cash:
+                summary: Home delivery, now, cash on delivery (delivery_mode 1, order_mode 2, payment_via 1)
+                value:
+                  address: Synthetic Street 1, Testville
+                  customer_id: 00000000-0000-4000-8000-000000000001
+                  delivery_mode: 1
+                  items:
+                    - entity_type: 1
+                      item_id: 00000000-0000-4000-8000-000000000003
+                      menu_id: 00000000-0000-4000-8000-000000000004
+                      notes: ""
+                      quantity: 2
+                      unit_price: 250
+                  latitude: 12.9716
+                  longitude: 77.5946
+                  order_mode: 2
+                  outlet_id: 00000000-0000-4000-8000-000000000002
+                  payment_via: 1
+                  timezone: Asia/Kolkata
+              deliver_scheduled_cash:
+                summary: Home delivery, scheduled (order_mode 1 + scheduled_for), cash
+                value:
+                  address: Synthetic Street 1, Testville
+                  customer_id: 00000000-0000-4000-8000-000000000001
+                  delivery_mode: 1
+                  items:
+                    - entity_type: 1
+                      item_id: 00000000-0000-4000-8000-000000000003
+                      menu_id: 00000000-0000-4000-8000-000000000004
+                      notes: ""
+                      quantity: 2
+                      unit_price: 250
+                  latitude: 12.9716
+                  longitude: 77.5946
+                  order_mode: 1
+                  outlet_id: 00000000-0000-4000-8000-000000000002
+                  payment_via: 1
+                  scheduled_for: "2026-12-06T13:30:00Z"
+                  timezone: Asia/Kolkata
+              pickup_now_card:
+                summary: Pickup, now, card (delivery_mode 2, order_mode 2, payment_via 2)
+                value:
+                  address: Synthetic Street 1, Testville
+                  customer_id: 00000000-0000-4000-8000-000000000001
+                  delivery_mode: 2
+                  items:
+                    - entity_type: 1
+                      item_id: 00000000-0000-4000-8000-000000000003
+                      menu_id: 00000000-0000-4000-8000-000000000004
+                      notes: ""
+                      quantity: 2
+                      unit_price: 250
+                  latitude: 12.9716
+                  longitude: 77.5946
+                  order_mode: 2
+                  outlet_id: 00000000-0000-4000-8000-000000000002
+                  payment_via: 2
+                  timezone: Asia/Kolkata
       responses:
         '200':
           description: Quote created or updated.
@@ -1034,7 +1158,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
   /api/v1/orders/quote/{id}:
     parameters:
       - $ref: '#/components/parameters/QuotationIdPath'
@@ -1144,7 +1267,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
   /api/v1/orders/create:
     post:
       tags: [orders-checkout]
@@ -1169,10 +1291,13 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/CreateOrderRequest'
-            example:
-              quotation_id: "00000000-0000-4000-8000-000000000005"
-              customer_id: "00000000-0000-4000-8000-000000000001"
-              client_request_id: "synthetic-request-0001"
+            examples:
+              create_from_quote:
+                summary: 'Create the order from a quote: quotation_id from the quote response, a new client_request_id per order'
+                value:
+                  client_request_id: synthetic-request-0001
+                  customer_id: 00000000-0000-4000-8000-000000000001
+                  quotation_id: 00000000-0000-4000-8000-000000000005
       responses:
         '200':
           description: Order created, or the original order replayed for a repeated client_request_id.
@@ -1221,7 +1346,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
   /api/v1/orders/list:
     post:
       tags: [orders-order]
@@ -1307,7 +1431,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
   /api/v1/orders/{id}:
     parameters:
       - $ref: '#/components/parameters/OrderIdPath'
@@ -1430,7 +1553,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
   /api/v1/orders/{id}/cancellation-preview:
     parameters:
       - $ref: '#/components/parameters/OrderIdPath'
@@ -1477,7 +1599,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
   /api/v1/orders/payment-modes:
     get:
       tags: [orders-payment]
@@ -1510,9 +1631,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
   # ==================== Customer payment calls (dh-extensions-api, via /api/v1/extensions) ====================
-
   /api/v1/extensions/payments/payment-methods/{paymentMethodId}/balance:
     get:
       tags: [orders-payment]
@@ -1554,7 +1673,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
       x-todo: "Response data shape not verified against dh-extensions-api. "
-
   /api/v1/extensions/payments/gateways/{gatewayId}/transactions:
     get:
       tags: [orders-payment]
@@ -1616,7 +1734,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
       x-todo: "Response shape not verified against dh-extensions-api."
-
   /api/v1/extensions/payments/gateways/{gatewayId}/recharge:
     post:
       tags: [orders-payment]
@@ -1669,7 +1786,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
   /api/v1/extensions/payments/gateways/{gatewayId}/microform/config:
     get:
       tags: [orders-payment]
@@ -1718,7 +1834,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
       x-todo: "The app passes a domain_name that is the page origin, and the example above is synthetic. Confirm which domains the backend accepts."
-
   /api/v1/extensions/payments/gateways/{gatewayId}/payment-methods:
     post:
       tags: [orders-payment]
@@ -1767,7 +1882,6 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
       x-todo: "Request body fields are not listed. The app sends a refresh token in a `refreshtoken` header and a hard-coded `ip-address` header on this call. Neither is documented. Confirm whether the backend reads them before publishing. Do not document their values."
       x-security-note: "This call sends a refresh token in a header. Clients must not log request headers for it."
-
   /api/v1/extensions/payments/gateways/{gatewayId}/authenticate:
     post:
       tags: [orders-payment]
@@ -1815,7 +1929,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
       x-todo: "Request body fields (phase, reference_id, billing_address, device_information, token) are not verified. Confirm the phase values against dh-extensions-api."
-
   /api/v1/extensions/payments/gateways/{gatewayId}/payment-methods/{cardId}:
     delete:
       tags: [orders-payment]
@@ -1864,7 +1977,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
   /api/v1/extensions/tax/wallet/calculate:
     post:
       tags: [orders-payment]
