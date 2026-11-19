@@ -442,7 +442,7 @@ components:
       type: object
       description: |-
         Status change. `status` is the target status: 1 = New, 2 = Accepted, 3 = Assigned, 4 = Processed, 5 = Order ready, 6 = Picked up, 7 = Dispatched, 8 = Delivered, 9 = Cancelled.
-        Store and staff tokens move the order forward (2, 4, 5, 7, 8; 6 for pickup) or cancel it (9). Customer tokens send only 9.
+        Store and staff tokens move the order forward one stage at a time (2, 3, 4, 5, 6, 7, 8) or cancel it (9). Customer tokens send only 9.
         `metadata.reason` is required for 9. `metadata.prep_time` (minutes) is optional on 2.
       required: [status]
       properties:
@@ -451,7 +451,7 @@ components:
           format: int64
           minimum: 1
           maximum: 10
-          description: 'Target status: 1 = New, 2 = Accepted, 3 = Assigned, 4 = Processed, 5 = Order ready, 6 = Picked up, 7 = Dispatched, 8 = Delivered, 9 = Cancelled. Store/staff: 2, 4, 5, 7, 8 in that order (6 for pickup orders, 3 when a driver is assigned), or 9 to reject. Customer: 9 only.'
+          description: 'Target status: 1 = New, 2 = Accepted, 3 = Assigned, 4 = Processed, 5 = Order ready, 6 = Picked up, 7 = Dispatched, 8 = Delivered, 9 = Cancelled. Store/staff: the next stage in the order 2, 3, 4, 5, 6, 7, 8, or 9 to reject. Customer: 9 only.'
           example: 2
           enum:
             - 2
@@ -1500,10 +1500,9 @@ paths:
       description: |-
         Moves an order to a new status. The same call serves the store and the customer; the token's role decides who is acting.
 
-        **Store (merchant role "2", outlet user "101", or staff)** moves the order through its stages, one call per stage:
-        1 New → 2 Accepted → 4 Processed → 5 Order ready → 7 Dispatched → 8 Delivered.
+        **Store (merchant role "2", outlet user "101", or staff)** moves the order through its stages, one call per stage, in this order (the store app offers the next one each time):
+        2 Accepted → 3 Assigned → 4 Processed → 5 Order ready → 6 Picked up → 7 Dispatched → 8 Delivered.
         - On accept (2) the store may send `metadata.prep_time` (minutes).
-        - 3 Assigned is set when a driver is assigned; 6 Picked up is for orders the customer collects (pickup): 5 → 6 → 8.
         - To reject or cancel, send 9 with `metadata.reason`.
         - An order that is Delivered (8) or Cancelled (9) is final.
 
@@ -1529,31 +1528,35 @@ paths:
                     refund_method: Source
                   status: 9
               store_1_accept:
-                summary: 'Store: accept (2), with prep time in minutes'
+                summary: 'Store step 1: accept (2), with prep time in minutes'
                 value:
                   metadata:
                     prep_time: 20
                   status: 2
-              store_2_processed:
-                summary: 'Store: preparing (4)'
+              store_2_assigned:
+                summary: 'Store step 2: assigned (3)'
+                value:
+                  status: 3
+              store_3_processed:
+                summary: 'Store step 3: processed (4)'
                 value:
                   status: 4
-              store_3_ready:
-                summary: 'Store: order ready (5)'
+              store_4_ready:
+                summary: 'Store step 4: order ready (5)'
                 value:
                   status: 5
-              store_4_dispatched:
-                summary: 'Store: dispatched (7)'
-                value:
-                  status: 7
-              store_5_delivered:
-                summary: 'Store: delivered (8)'
-                value:
-                  status: 8
-              store_pickup_collected:
-                summary: 'Store, pickup order: customer collected it (6), then send 8'
+              store_5_picked_up:
+                summary: 'Store step 5: picked up (6)'
                 value:
                   status: 6
+              store_6_dispatched:
+                summary: 'Store step 6: dispatched (7)'
+                value:
+                  status: 7
+              store_7_delivered:
+                summary: 'Store step 7: delivered (8)'
+                value:
+                  status: 8
               store_reject:
                 summary: 'Store: reject or cancel (9) with a reason'
                 value:

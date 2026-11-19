@@ -179,12 +179,15 @@ from the create response.
 | Step | Body | Order is now |
 |------|------|--------------|
 | 1 | `{"status": 2, "metadata": {"prep_time": 20}}` | Accepted (prep time in minutes, optional) |
-| 2 | `{"status": 4}` | Processed (being prepared) |
-| 3 | `{"status": 5}` | Order ready |
-| 4 | `{"status": 7}` | Dispatched |
-| 5 | `{"status": 8}` | Delivered (final) |
+| 2 | `{"status": 3}` | Assigned |
+| 3 | `{"status": 4}` | Processed |
+| 4 | `{"status": 5}` | Order ready |
+| 5 | `{"status": 6}` | Picked up |
+| 6 | `{"status": 7}` | Dispatched |
+| 7 | `{"status": 8}` | Delivered (final) |
 
-- Pickup orders: after 5, send 6 (customer collected it), then 8.
+This is the order the store app follows: it always offers the next status.
+
 - Reject or cancel: `{"status": 9, "metadata": {"reason": "Item out of stock"}}`. Delivered and
   Cancelled are final.
 - A customer token sends only 9 (cancel). Cash-on-delivery orders are cancelled by the store, not the
@@ -211,7 +214,7 @@ example in the spec.
 | `order_mode` | 1 scheduled (send `scheduled_for`), 2 now |
 | `payment_via`, `payment_mode`, `gateway_type` | 1 cash on delivery, 2 card, 3 wallet |
 | `order_status` | 1 New, 2 Accepted, 3 Assigned, 4 Processed, 5 Order ready, 6 Pickup, 7 Dispatched, 8 Delivered, 9 Cancelled, 10 Deleted, 11 Pickup started |
-| Status update `status` (`POST /api/v1/orders/{id}`) | Store: 2 Accepted, 4 Processed, 5 Order ready, 7 Dispatched, 8 Delivered (6 Picked up for pickup orders), 9 reject. Customer: 9 only. |
+| Status update `status` (`POST /api/v1/orders/{id}`) | Store, one stage at a time: 2 Accepted, 3 Assigned, 4 Processed, 5 Order ready, 6 Picked up, 7 Dispatched, 8 Delivered; 9 reject. Customer: 9 only. |
 | `refund_method` | `Source` (back to the original payment), `Wallet` |
 | `entity_type` (items) | 1 product, 2 modifier, 3 modifier group, 4 upsell, 5 deal, 6 variant, 7 bundle |
 | Category `category_type` | 1 business category (platform), 2 product category (a store's menu); store setup uses 2 |
