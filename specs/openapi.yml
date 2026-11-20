@@ -260,6 +260,30 @@ components:
           schema:
             $ref: '#/components/schemas/UserProfile_ErrorEnvelope'
       description: Invalid OTP (ACCESS_DENIED with the error message Invalid OTP). details.session holds a new session for the retry.
+    UserProfile_LoginAccessDenied:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/UserProfile_ErrorEnvelope'
+      description: The account is deleted, blocked or not active (ACCESS_DENIED).
+    UserProfile_LoginBadRequest:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/UserProfile_ErrorEnvelope'
+      description: Invalid request, including a tenant_id that is not a UUID or does not match a tenant (INVALID_INPUT, VALIDATION_FAILED).
+    UserProfile_LoginUnauthorized:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/UserProfile_ErrorEnvelope'
+      description: Credentials not accepted (UNAUTHORIZED).
+    UserProfile_LoginUserNotFound:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/UserProfile_ErrorEnvelope'
+      description: No account of this role for the email in the tenant (USER_NOT_FOUND).
     UserProfile_NotFound:
       content:
         application/json:
@@ -624,6 +648,47 @@ components:
         - role
         - provider_token
         - device_info
+      type: object
+    Auth_TenantByDomainData:
+      properties:
+        found:
+          description: True when the hostname resolved to a tenant.
+          type: boolean
+        message:
+          example: tenant resolved
+          type: string
+        tenant_id:
+          description: Tenant UUID to send as tenant_id. Absent when found is false.
+          example: 00000000-0000-4000-8000-000000000001
+          format: uuid
+          type: string
+      required:
+        - found
+        - message
+      type: object
+    Auth_TenantByDomainRequest:
+      properties:
+        domain:
+          description: Bare hostname, for example console.example.com. Not a URL and not host:port. Letters, digits, hyphens and dots; an internationalised name goes in its punycode (xn--) form.
+          example: console.example.com
+          maxLength: 253
+          type: string
+      required:
+        - domain
+      type: object
+    Auth_TenantByDomainResponse:
+      properties:
+        data:
+          $ref: '#/components/schemas/Auth_TenantByDomainData'
+        meta:
+          additionalProperties: true
+          type: object
+        success:
+          example: true
+          type: boolean
+      required:
+        - success
+        - data
       type: object
     Auth_UserExistsRole:
       properties:
@@ -2707,6 +2772,29 @@ components:
       required:
         - address_id
       type: object
+    UserProfile_AuthResponseWithStatus:
+      description: Tokens and user summary returned by the password logins and by OTP verify.
+      properties:
+        access_token:
+          description: Cognito access token.
+          type: string
+        expires_in:
+          description: Token lifetime in seconds.
+          example: 3600
+          format: int64
+          type: integer
+        id_token:
+          description: 'The bearer token for protected routes: send `Authorization: Bearer <id_token>`. Valid for 60 minutes.'
+          type: string
+        refresh_token:
+          description: Refresh token for POST /api/v1/auth/refresh.
+          type: string
+        token_type:
+          example: Bearer
+          type: string
+        user:
+          $ref: '#/components/schemas/UserProfile_UserInfoWithStatus'
+      type: object
     UserProfile_ContactChangeRequest:
       properties:
         country_code:
@@ -2750,7 +2838,7 @@ components:
           example: new.customer@example.com
           type: string
         otp_code:
-          example: "123456"
+          example: <otp>
           type: string
         otp_type:
           description: The same otp_type as the change request.
@@ -2779,16 +2867,19 @@ components:
         device_info:
           $ref: '#/components/schemas/UserProfile_DeviceInfo'
         email:
-          example: test.customer@example.com
+          example: user@example.com
           format: email
           type: string
         password:
           description: Never log or echo.
+          example: <password>
           format: password
           type: string
         recaptcha_token:
+          description: Optional. A reCAPTCHA v3 token generated with action login. The tenant may require it.
           type: string
         tenant_id:
+          description: Tenant UUID (not the numeric id). POST /api/v1/auth/tenant-by-domain returns it for a site hostname.
           example: 00000000-0000-4000-8000-000000000001
           format: uuid
           type: string
@@ -2799,39 +2890,38 @@ components:
         - device_info
       type: object
     UserProfile_CustomerLoginResponse:
-      properties:
-        2fa_required:
-          type: boolean
-        access_token:
-          type: string
-        country_code:
-          type: string
-        expires_in:
-          example: 3600
-          format: int64
-          type: integer
-        id_token:
-          type: string
-        identifier:
-          type: string
-        identifier_type:
-          type: string
-        refresh_token:
-          type: string
-        role_id:
-          type: string
-        session:
-          type: string
-        tenant_id:
-          type: string
-        token_type:
-          example: Bearer
-          type: string
-        user:
-          $ref: '#/components/schemas/UserProfile_UserInfoWithStatus'
-        username:
-          type: string
-      type: object
+      allOf:
+        - $ref: '#/components/schemas/UserProfile_AuthResponseWithStatus'
+        - properties:
+            2fa_required:
+              description: True when the account has 2FA on. Then no tokens are returned and the code is sent.
+              type: boolean
+            country_code:
+              description: 2FA only, for a phone identifier.
+              type: string
+            identifier:
+              description: 2FA only. Where the code went (the phone on record, else the email).
+              type: string
+            identifier_type:
+              description: 2FA only.
+              enum:
+                - email
+                - phone
+              type: string
+            role_id:
+              description: 2FA only. The account role, as a string.
+              type: string
+            session:
+              description: 2FA only. Send as session to the verify step.
+              type: string
+            tenant_id:
+              description: 2FA only. The tenant_id from the request.
+              type: string
+            username:
+              description: 2FA only. The sign-in (Cognito) username; send it as username to the verify step. It is returned only here.
+              type: string
+          type: object
+      description: Either tokens (AuthResponseWithStatus fields) or, when 2fa_required is true, a 2FA challenge with no tokens. The challenge fields are what POST /api/v1/users/otp/verify/login needs.
     UserProfile_CustomerProfile:
       additionalProperties: true
       description: Customer profile (domain UserProfileResponse).
@@ -2844,10 +2934,12 @@ components:
           example: 1.0.0
           type: string
         device_id:
-          example: test-device-001
+          description: Client-generated device id. The apps send a random UUID; create one per account and reuse it on later logins.
+          example: 00000000-0000-4000-8000-000000000003
+          maxLength: 255
           type: string
         device_name:
-          example: Test Device
+          example: web-client
           type: string
         device_token:
           description: Optional push token.
@@ -2865,6 +2957,7 @@ components:
           description: Optional. The server may overwrite it from the connection.
           type: string
         os_version:
+          description: May be empty.
           example: "1.0"
           type: string
         user_agent:
@@ -2932,24 +3025,9 @@ components:
           type: number
       type: object
     UserProfile_LoginVerifyResponse:
-      properties:
-        access_token:
-          description: Synthetic in examples only.
-          type: string
-        expires_in:
-          example: 3600
-          format: int64
-          type: integer
-        id_token:
-          type: string
-        refresh_token:
-          type: string
-        token_type:
-          example: Bearer
-          type: string
-        user:
-          $ref: '#/components/schemas/UserProfile_UserInfoWithStatus'
-      type: object
+      allOf:
+        - $ref: '#/components/schemas/UserProfile_AuthResponseWithStatus'
+      description: Same tokens and user summary as the password logins.
     UserProfile_MerchantAddressRequest:
       properties:
         address_line_1:
@@ -2982,14 +3060,16 @@ components:
         device_info:
           $ref: '#/components/schemas/UserProfile_DeviceInfo'
         email:
-          example: test.store@example.com
+          example: store@example.com
           format: email
           type: string
         password:
           description: Never log or echo.
+          example: <password>
           format: password
           type: string
         tenant_id:
+          description: Tenant UUID (not the numeric id).
           example: 00000000-0000-4000-8000-000000000001
           format: uuid
           type: string
@@ -3010,7 +3090,8 @@ components:
         device_info:
           $ref: '#/components/schemas/UserProfile_DeviceInfo'
         identifier:
-          example: test.customer@example.com
+          description: The email address, or the phone number in digits without the country code. Checked against identifier_type.
+          example: user@example.com
           type: string
         identifier_type:
           enum:
@@ -3021,10 +3102,12 @@ components:
         method:
           type: string
         name:
+          description: Signup only.
           example: Test Customer
           type: string
         otp_challenge:
-          example: false
+          description: Newer builds read it; older ones ignore it. Send true on a login so the response always carries session and username.
+          example: true
           type: boolean
         platform:
           description: 'Where the request comes from: web, android or ios.'
@@ -3043,17 +3126,19 @@ components:
           example: ses
           type: string
         recaptcha_token:
-          description: Optional reCAPTCHA v3 token for action login.
+          description: Optional. A reCAPTCHA v3 token generated with action otp_<type> (otp_login for a login). The tenant may require it.
           type: string
         role_id:
+          description: 'Role of the account, as a string: "1" admin, "2" merchant (store owner), "4" customer.'
           example: "4"
           type: string
         tenant_id:
+          description: Tenant UUID (not the numeric id). POST /api/v1/auth/tenant-by-domain returns it for a site hostname.
           example: 00000000-0000-4000-8000-000000000001
           format: uuid
           type: string
         type:
-          description: 'Why the code is sent: signup, login, password_change, email_change, phone_change or enable2fa.'
+          description: 'Why the code is sent: signup, login, password_change, email_change, phone_change or enable2fa. Use login for an OTP login.'
           enum:
             - signup
             - login
@@ -3064,35 +3149,61 @@ components:
           example: login
           type: string
       required:
+        - identifier
         - identifier_type
         - tenant_id
+        - role_id
+        - type
         - provider_type
         - device_info
       type: object
     UserProfile_OtpInitiateResponse:
       properties:
+        challenge_name:
+          description: Empty.
+          example: ""
+          type: string
         login_methods:
+          description: Newer builds only, on the 200 response. The ways the existing account can sign in.
           example:
-            - email
-            - phone
+            - otp_challenge
+            - password
           items:
+            enum:
+              - otp_challenge
+              - password
             type: string
           type: array
+        message:
+          type: string
+        session:
+          description: Challenge session. Send it as session to POST /api/v1/users/otp/verify/{otptype}.
+          example: <session>
+          type: string
         type:
-          example: signup
+          description: Newer builds only. The OTP type the server stored (signup or login); verify with /otp/verify/<type>.
+          example: login
+          type: string
+        username:
+          description: Sign-in (Cognito) username for this challenge. Send it as username to the verify step; do not compute it.
+          example: <username>
           type: string
       type: object
     UserProfile_OtpVerifyLoginRequest:
+      description: Body for otptype login and password_change. Used for OTP login and for the 2FA step after a password login.
       properties:
         client_ip:
+          description: Ignored. The server uses the connection address.
           type: string
         country_code:
+          description: Required for phone.
           example: "+1"
           type: string
         device_info:
           $ref: '#/components/schemas/UserProfile_DeviceInfo'
         identifier:
-          example: test.customer@example.com
+          description: The same identifier as the initiate call (or the 2FA challenge).
+          example: user@example.com
           type: string
         identifier_type:
           enum:
@@ -3100,20 +3211,25 @@ components:
             - phone
           type: string
         otp_code:
-          example: "123456"
+          description: The code the user received.
+          example: <otp>
           type: string
         role_id:
+          description: 'The same role as the initiate call: "1" admin, "2" merchant, "4" customer.'
           example: "4"
           type: string
         session:
-          example: test-session-token
+          description: data.session from the initiate response or the 2FA challenge.
+          example: <session>
           type: string
         tenant_id:
+          description: Tenant UUID, the same as in the initiate call.
           example: 00000000-0000-4000-8000-000000000001
           format: uuid
           type: string
         username:
-          example: test-user-name
+          description: data.username from the initiate response or the 2FA challenge.
+          example: <username>
           type: string
       required:
         - identifier
@@ -3121,6 +3237,7 @@ components:
         - otp_code
         - username
         - session
+        - tenant_id
         - role_id
       type: object
     UserProfile_OtpVerifySignupRequest:
@@ -3143,7 +3260,7 @@ components:
         method:
           type: string
         otp_code:
-          example: "123456"
+          example: <otp>
           type: string
         role_id:
           example: "4"
@@ -3309,7 +3426,7 @@ components:
           type: string
         business_type:
           description: 'Business type id, from the storefront config query `businessTypes`, for example 1 = restaurant, 2 = grocery, 3 = cafe, 4 = pharmacy, 5 = food, 6 = butcher, 7 = retail, 8 = salon. Ids are per tenant: read them from the config query.'
-          example: 1
+          example: "1"
           type: string
         city_id:
           example: Testville
@@ -3393,6 +3510,31 @@ components:
           example: "1"
           type: string
       type: object
+    UserProfile_TenantLoginRequest:
+      description: Body of the tenant admin login. The server sets the role to admin (1).
+      properties:
+        device_info:
+          $ref: '#/components/schemas/UserProfile_DeviceInfo'
+        email:
+          example: admin@example.com
+          format: email
+          type: string
+        password:
+          description: Never log or echo.
+          example: <password>
+          format: password
+          type: string
+        tenant_id:
+          description: Tenant UUID (not the numeric id).
+          example: 00000000-0000-4000-8000-000000000001
+          format: uuid
+          type: string
+      required:
+        - email
+        - password
+        - tenant_id
+        - device_info
+      type: object
     UserProfile_UpdateProfileRequest:
       properties:
         avatar_url:
@@ -3473,6 +3615,7 @@ components:
           format: int64
           type: integer
         tenant_id:
+          description: Tenant UUID. Filled by OTP verify; null on the password logins.
           nullable: true
           type: string
         user_id:
@@ -3496,7 +3639,7 @@ components:
   securitySchemes:
     bearerAuth:
       bearerFormat: JWT
-      description: 'JWT access token from the dh-auth login flow. Send as: Authorization: Bearer <token>'
+      description: 'The id_token (data.id_token) from a login or OTP verify response, valid for 60 minutes. Send as: Authorization: Bearer <id_token>'
       scheme: bearer
       type: http
 paths:
@@ -3626,20 +3769,30 @@ paths:
         - action accepts initiate or callback. The customer app always sends callback. The callback handler does not branch on action in verify.go; confirm what initiate is expected to do, or remove it from the enum.
   /api/v1/auth/check-user:
     post:
-      description: Public. Called by the customer app before OTP or password sign-in. Returns 200 with the exists flag. Phone identifiers are digits only, 4 to 14 characters.
+      description: 'Public. Called by the customer app and the console before OTP or password sign-in. Returns 200 with the exists flag and, when it exists, the account''s roles. Pick the login from data.roles[].role_id: 1 admin = POST /api/v1/users/tenant/login, 2 merchant = POST /api/v1/users/store/login, 4 customer = POST /api/v1/users/customer/login (or OTP login with that role_id). Get tenant_id from POST /api/v1/auth/tenant-by-domain. Phone identifiers are digits only, 4 to 14 characters.'
       operationId: auth_checkUser
       parameters:
         - $ref: '#/components/parameters/Auth_AcceptLanguage'
       requestBody:
         content:
           application/json:
-            example:
-              country_code: "+1"
-              domain: https://shop.example.com
-              identifier: "5550100123"
-              identifier_type: phone
-              role_id: "4"
-              tenant_id: 3f2b8a1e-4c5d-4e6f-8a9b-0c1d2e3f4a5b
+            examples:
+              consoleEmail:
+                summary: Console user, by email
+                value:
+                  domain: console.example.com
+                  identifier: admin@example.com
+                  identifier_type: email
+                  tenant_id: 00000000-0000-4000-8000-000000000001
+              customerPhone:
+                summary: Customer, by phone
+                value:
+                  country_code: "+1"
+                  domain: https://shop.example.com
+                  identifier: "5550100123"
+                  identifier_type: phone
+                  role_id: "4"
+                  tenant_id: 00000000-0000-4000-8000-000000000001
             schema:
               $ref: '#/components/schemas/Auth_CheckUserRequest'
         required: true
@@ -3750,6 +3903,74 @@ paths:
       x-todo:
         - An expired or revoked refresh token returns 500 INTERNAL_ERROR (Cognito NotAuthorizedException is mapped to a plain error). Expected 401 TOKEN_EXPIRED or TOKEN_INVALID. The customer app treats any non-OK response as a failed refresh, so the status change will not break it. Confirm and fix in the backend.
         - tenant_id and user_id are not validated but are passed to the profile lookup. The customer app sends tenant UUID and user UUID. Confirm both are accepted as UUID strings.
+  /api/v1/auth/tenant-by-domain:
+    post:
+      description: 'Public, no token is needed. Rate-limited. Resolves a bare hostname (for example the console hostname) to the tenant UUID that the logins, OTP calls and check-user take as tenant_id. Send the hostname only: no scheme, port or path. The server trims and lower-cases it. The answer is always 200: data.found is false and tenant_id is absent when the hostname does not resolve. Sign-in order for the console: tenant-by-domain, then check-user, then the login for the account''s role. Source: dh-auth live (b55de24d).'
+      operationId: auth_tenantByDomain
+      requestBody:
+        content:
+          application/json:
+            example:
+              domain: console.example.com
+            schema:
+              $ref: '#/components/schemas/Auth_TenantByDomainRequest'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              examples:
+                found:
+                  summary: Hostname resolved
+                  value:
+                    data:
+                      found: true
+                      message: tenant resolved
+                      tenant_id: 00000000-0000-4000-8000-000000000001
+                    meta:
+                      request_id: 00000000-0000-4000-8000-000000000002
+                      timestamp: "2026-01-01T00:00:00Z"
+                    success: true
+                notFound:
+                  summary: Hostname did not resolve
+                  value:
+                    data:
+                      found: false
+                      message: no tenant resolved for this domain
+                    meta:
+                      request_id: 00000000-0000-4000-8000-000000000002
+                      timestamp: "2026-01-01T00:00:00Z"
+                    success: true
+              schema:
+                $ref: '#/components/schemas/Auth_TenantByDomainResponse'
+          description: Lookup result. data.found tells whether the hostname resolved.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Auth_ErrorResponse'
+          description: Body not valid JSON, or domain missing, longer than 253 characters, or not a bare hostname (INVALID_INPUT).
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Auth_RateLimitError'
+          description: Rate limit exceeded. Retry-After header gives the wait in seconds. Body uses the rate-limit shape, not the standard envelope.
+          headers:
+            Retry-After:
+              description: Seconds to wait before retrying.
+              schema:
+                type: integer
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Auth_ErrorResponse'
+          description: Internal error.
+      security: []
+      summary: Get the tenant UUID for a hostname
+      tags:
+        - auth-tenant-lookup
   /api/v1/catalog/category:
     post:
       description: Creates a category for the tenant from the request body. Also accepts sub_categories, product_ids and tag_ids (not documented here). Call before creating items that map to it.
@@ -6991,7 +7212,7 @@ paths:
       x-todo: The customer app's updateProfile sends profile_picture and identifier, and registerCustomer (authService.ts) sends this same route with mobile, email, referral_code and device_info. UpdateProfileRequest has none of those fields (it has avatar_url and referal_code, spelled as in the code). Unknown fields are ignored by the bind, so those values are dropped. Confirm the intended contract with the app team.
   /api/v1/users/customer/login:
     post:
-      description: Logs a customer in with email and password for a tenant. Public, no token is needed. Returns tokens, or a 2FA challenge (2fa_required, session) when 2FA applies. Rate-limited.
+      description: 'Logs a customer in with email and password for a tenant. Public, no token is needed. Rate-limited. tenant_id is the tenant''s UUID (a numeric id is rejected with 400); POST /api/v1/auth/tenant-by-domain returns it for a site hostname. The server sets the role to customer (4) and derives the sign-in (Cognito) username itself; the client never computes or sends one. device_info.device_id is a client-generated UUID: create one per account and reuse it on later logins. The 200 response carries data.id_token: send it as `Authorization: Bearer <id_token>` on protected routes. It is valid for 60 minutes (data.expires_in is 3600 seconds); log in again or refresh it after that. When the account has 2FA on, the 200 response is a challenge instead (data.2fa_required true, no tokens) and the code is sent; finish with POST /api/v1/users/otp/verify/login.'
       operationId: users_customerLogin
       parameters:
         - $ref: '#/components/parameters/UserProfile_AcceptLanguage'
@@ -7001,12 +7222,12 @@ paths:
             example:
               device_info:
                 app_version: 1.0.0
-                device_id: test-device-001
-                device_name: Test Device
+                device_id: 00000000-0000-4000-8000-000000000003
+                device_name: web-client
                 device_type: web
-                os_version: "1.0"
-              email: test.customer@example.com
-              password: synthetic-test-password
+                os_version: ""
+              email: user@example.com
+              password: <password>
               tenant_id: 00000000-0000-4000-8000-000000000001
             schema:
               $ref: '#/components/schemas/UserProfile_CustomerLoginRequest'
@@ -7015,6 +7236,45 @@ paths:
         "200":
           content:
             application/json:
+              examples:
+                tokens:
+                  summary: Logged in
+                  value:
+                    data:
+                      access_token: <access_token>
+                      expires_in: 3600
+                      id_token: <id_token>
+                      refresh_token: <refresh_token>
+                      token_type: Bearer
+                      user:
+                        email: user@example.com
+                        id: 00000000-0000-4000-8000-000000000004
+                        is_email_verified: true
+                        is_phone_verified: false
+                        outlet_uuid: null
+                        status: 9
+                        tenant_id: null
+                        user_id: 1001
+                        verification_status: 1
+                    meta:
+                      request_id: 00000000-0000-4000-8000-000000000002
+                      timestamp: "2026-01-01T00:00:00Z"
+                    success: true
+                twoFactorChallenge:
+                  summary: 2FA challenge (no tokens)
+                  value:
+                    data:
+                      2fa_required: true
+                      identifier: user@example.com
+                      identifier_type: email
+                      role_id: "4"
+                      session: <session>
+                      tenant_id: 00000000-0000-4000-8000-000000000001
+                      username: <username>
+                    meta:
+                      request_id: 00000000-0000-4000-8000-000000000002
+                      timestamp: "2026-01-01T00:00:00Z"
+                    success: true
               schema:
                 properties:
                   data:
@@ -7025,11 +7285,19 @@ paths:
                     example: true
                     type: boolean
                 type: object
-          description: Login result with tokens (or a 2FA challenge).
+          description: Login result with tokens, or a 2FA challenge when data.2fa_required is true.
         "400":
-          $ref: '#/components/responses/UserProfile_BadRequest'
+          $ref: '#/components/responses/UserProfile_LoginBadRequest'
         "401":
-          $ref: '#/components/responses/UserProfile_Unauthorized'
+          $ref: '#/components/responses/UserProfile_LoginUnauthorized'
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile_ErrorEnvelope'
+          description: Refused. FORBIDDEN when the reCAPTCHA check fails; ACCESS_DENIED when the account is deleted, blocked, not active or awaiting approval.
+        "404":
+          $ref: '#/components/responses/UserProfile_LoginUserNotFound'
         "415":
           $ref: '#/components/responses/UserProfile_UnsupportedMediaType'
         "429":
@@ -7041,7 +7309,6 @@ paths:
       tags:
         - users-customer-login
       x-security-note: Credential endpoint. Rate-limited. Use only synthetic test accounts.
-      x-todo: The customer app's customerLogin sends role, not role_id; it also sends no device_info by default. The DTO requires device_info. Confirm the exact body the app sends before QA uses it.
   /api/v1/users/customer/logout:
     post:
       description: Ends the caller's session. device_id is optional and limits the logout to one device. Requires a Bearer token.
@@ -7092,8 +7359,8 @@ paths:
         content:
           application/json:
             example:
-              confirm_password: synthetic-new-password
-              new_password: synthetic-new-password
+              confirm_password: <password>
+              new_password: <password>
               session: test-session-token
             schema:
               $ref: '#/components/schemas/UserProfile_SetNewPasswordRequest'
@@ -7131,26 +7398,63 @@ paths:
       x-security-note: Credential endpoint. Rate-limited. Use only synthetic test accounts.
   /api/v1/users/otp/initiate:
     post:
-      description: Starts an OTP challenge for an email or phone identifier. Returns 201 when a code is sent. For a login step that sends no code, it returns 200 with login_methods. Public, no token is needed. Rate-limited.
+      description: 'Starts an OTP challenge for an email or phone identifier and sends the code. Public, no token is needed. Rate-limited. OTP login, for any role (role_id "1" admin, "2" merchant, "4" customer): 1. Call this with type login. 2. Read data.session and data.username from the 201 response (both sit directly under data). 3. Call POST /api/v1/users/otp/verify/login with them, the same identifier, identifier_type, country_code, role_id and tenant_id, and the code as otp_code. 4. Send data.id_token from the verify response as `Authorization: Bearer <id_token>`. A login for an identifier with no account of that role returns 404. Newer builds also return data.type, and answer a login sent without otp_challenge true with 200 and data.login_methods instead of a session; send otp_challenge true to always get a session.'
       operationId: users_initiateOtp
       parameters:
         - $ref: '#/components/parameters/UserProfile_AcceptLanguage'
       requestBody:
         content:
           application/json:
-            example:
-              device_info:
-                app_version: 1.0.0
-                device_id: test-device-001
-                device_name: Test Device
-                device_type: web
-                os_version: "1.0"
-              identifier: test.customer@example.com
-              identifier_type: email
-              provider_type: ses
-              role_id: "4"
-              tenant_id: 00000000-0000-4000-8000-000000000001
-              type: signup
+            examples:
+              adminEmailLogin:
+                summary: Admin, email OTP login
+                value:
+                  device_info:
+                    app_version: 1.0.0
+                    device_id: 00000000-0000-4000-8000-000000000003
+                    device_name: web-client
+                    device_type: web
+                    os_version: ""
+                  identifier: admin@example.com
+                  identifier_type: email
+                  otp_challenge: true
+                  provider_type: ses
+                  role_id: "1"
+                  tenant_id: 00000000-0000-4000-8000-000000000001
+                  type: login
+              customerEmailLogin:
+                summary: Customer, email OTP login
+                value:
+                  device_info:
+                    app_version: 1.0.0
+                    device_id: 00000000-0000-4000-8000-000000000003
+                    device_name: web-client
+                    device_type: web
+                    os_version: ""
+                  identifier: user@example.com
+                  identifier_type: email
+                  otp_challenge: true
+                  provider_type: ses
+                  role_id: "4"
+                  tenant_id: 00000000-0000-4000-8000-000000000001
+                  type: login
+              merchantPhoneLogin:
+                summary: Merchant, phone OTP login by SMS
+                value:
+                  country_code: "+1"
+                  device_info:
+                    app_version: 1.0.0
+                    device_id: 00000000-0000-4000-8000-000000000003
+                    device_name: web-client
+                    device_type: web
+                    os_version: ""
+                  identifier: <phone>
+                  identifier_type: phone
+                  otp_challenge: true
+                  provider_type: sms
+                  role_id: "2"
+                  tenant_id: 00000000-0000-4000-8000-000000000001
+                  type: login
             schema:
               $ref: '#/components/schemas/UserProfile_OtpInitiateRequest'
         required: true
@@ -7168,10 +7472,20 @@ paths:
                     example: true
                     type: boolean
                 type: object
-          description: Login step; no code sent. The body lists the login methods.
+          description: Newer builds only. A login sent without otp_challenge true; no code sent and no session. The body lists the login methods.
         "201":
           content:
             application/json:
+              example:
+                data:
+                  challenge_name: ""
+                  message: <message>
+                  session: <session>
+                  username: <username>
+                meta:
+                  request_id: 00000000-0000-4000-8000-000000000002
+                  timestamp: "2026-01-01T00:00:00Z"
+                success: true
               schema:
                 properties:
                   data:
@@ -7182,11 +7496,29 @@ paths:
                     example: true
                     type: boolean
                 type: object
-          description: OTP sent.
+          description: OTP sent. data.session and data.username are the values the verify step needs.
         "400":
           $ref: '#/components/responses/UserProfile_BadRequest'
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile_ErrorEnvelope'
+          description: Refused. FORBIDDEN when the reCAPTCHA check fails; ACCESS_DENIED when the account is awaiting approval.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile_ErrorEnvelope'
+          description: No account of this role for the identifier (PROFILE_NOT_FOUND). Returned for type login and password_change.
         "415":
           $ref: '#/components/responses/UserProfile_UnsupportedMediaType'
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile_ErrorEnvelope'
+          description: The delivery provider in provider_type is not enabled for the tenant (BUSINESS_RULE_VIOLATION). Returned for merchant-side roles.
         "429":
           $ref: '#/components/responses/UserProfile_TooManyRequests'
         "500":
@@ -7196,10 +7528,9 @@ paths:
       tags:
         - users-otp
       x-security-note: Sends an OTP by email or SMS. Rate-limited. Do not use real contacts in tests.
-      x-todo: 'Mismatch: the app''s initiateOTP (authService.ts) reads data.session and data.username from this response, but the handler returns only the OtpInitiateResponse struct (type and login_methods). Verify the usecase output before the QA tests assume a session. The DTO also marks device_info as required, while the app sends it as optional. The type field''s allowed values are not enumerated in the code reviewed.'
   /api/v1/users/otp/verify/{otptype}:
     post:
-      description: 'Verifies the OTP from the initiate operation. The request body type depends on otptype: signup uses the signup body, login and password_change use the login body. A wrong OTP returns 403 with details.session, a new session to use for the retry. Call after /otp/initiate.'
+      description: 'Verifies the OTP from the initiate operation. Public, no token is needed. Rate-limited. The request body type depends on otptype: signup uses the signup body, login and password_change use the login body. A wrong OTP returns 403 with details.session, a new session to use for the retry. OTP login (otptype login), for any role: send the session and username from the POST /api/v1/users/otp/initiate response, the code as otp_code, and the same identifier, identifier_type, country_code, role_id and tenant_id. The 200 response has the same tokens as the password logins; send data.id_token as `Authorization: Bearer <id_token>`. 2FA after a password login: when a password login returns data.2fa_required true, call this with otptype login and the identifier, identifier_type, country_code, session, username, role_id and tenant_id from that response, plus the code.'
       operationId: users_verifyOtp
       parameters:
         - description: 'Which code to verify; use the same value as `type` in the initiate call: signup = new account, login = sign in with a code, password_change = reset the password.'
@@ -7220,19 +7551,19 @@ paths:
             example:
               device_info:
                 app_version: 1.0.0
-                device_id: test-device-001
-                device_name: Test Device
+                device_id: 00000000-0000-4000-8000-000000000003
+                device_name: web-client
                 device_type: web
-                os_version: "1.0"
-              identifier: test.customer@example.com
+                os_version: ""
+              identifier: user@example.com
               identifier_type: email
-              otp_code: "123456"
+              otp_code: <otp>
               role_id: "4"
-              session: test-session-token
+              session: <session>
               tenant_id: 00000000-0000-4000-8000-000000000001
-              username: test-user-name
+              username: <username>
             schema:
-              oneOf:
+              anyOf:
                 - $ref: '#/components/schemas/UserProfile_OtpVerifySignupRequest'
                 - $ref: '#/components/schemas/UserProfile_OtpVerifyLoginRequest'
         required: true
@@ -7252,21 +7583,33 @@ paths:
                 type: object
           description: OTP verified. The body holds the tokens for login and password change.
         "400":
-          $ref: '#/components/responses/UserProfile_BadRequest'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile_ErrorEnvelope'
+          description: Invalid request, or the session is unknown, expired or does not match the identifier (INVALID_INPUT, VALIDATION_FAILED).
         "403":
-          $ref: '#/components/responses/UserProfile_InvalidOtp'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile_ErrorEnvelope'
+          description: Wrong OTP (ACCESS_DENIED with the message Invalid OTP; details.session holds a new session for the retry), or the account is deleted, blocked, inactive or awaiting approval (ACCESS_DENIED).
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile_ErrorEnvelope'
+          description: No account matches the verified code (USER_NOT_FOUND).
         "415":
           $ref: '#/components/responses/UserProfile_UnsupportedMediaType'
         "429":
           $ref: '#/components/responses/UserProfile_TooManyRequests'
         "500":
           $ref: '#/components/responses/UserProfile_InternalError'
-      security:
-        - bearerAuth: []
+      security: []
       summary: Verify an OTP for signup, login or password change
       tags:
         - users-otp
-      x-todo: Confirm whether this operation needs a bearer token.
   /api/v1/users/outlets/{id}:
     get:
       description: 'Returns one outlet with its opening hours: delivery_schedules (delivery_mode 1 rows) and pickup_schedules (delivery_mode 2 rows). A list is omitted when the outlet has no rows of that mode. Hours are written with POST /api/v1/profile/outlets and PUT /api/v1/profile/outlets/{id} (profile spec). The outlet must belong to the store resolved from the caller and store_uuid, or the call returns 403. Requires a Bearer token. The edge sets the identity headers; clients must not send them.'
@@ -7385,7 +7728,7 @@ paths:
       x-todo: Also used for store settings in the storefront. This operation documents only the basic detail fields. Other fields in the same request body (preferences, is_sponsored, show_analytics_enabled, service_area_enforcement_enabled, add_user_tags, delete_user_tags, merchant_access_to_user_tags_enabled, web_domain, password, store_id) are settings or account fields and are excluded. Whether business_categories is needed for an orderable store is not confirmed.
   /api/v1/users/store/login:
     post:
-      description: Logs a store (merchant) user in with email and password and returns tokens. Used to get a Bearer token for admin test-data setup. Public, no token is needed. Rate-limited.
+      description: 'Logs a store (merchant) user in with email and password and returns tokens. Used to get a Bearer token for admin test-data setup. Public, no token is needed. Rate-limited. tenant_id is the tenant''s UUID; POST /api/v1/auth/tenant-by-domain returns it for a site hostname. The server sets the role to merchant (2) and derives the sign-in (Cognito) username itself; the client never computes or sends one. Send data.id_token as `Authorization: Bearer <id_token>`; it is valid for 60 minutes (data.expires_in 3600). Newer builds answer with the same 2FA challenge as customer login (data.2fa_required true, no tokens) when the account has 2FA on; finish with POST /api/v1/users/otp/verify/login.'
       operationId: users_storeLogin
       parameters:
         - $ref: '#/components/parameters/UserProfile_AcceptLanguage'
@@ -7395,12 +7738,12 @@ paths:
             example:
               device_info:
                 app_version: 1.0.0
-                device_id: test-device-001
-                device_name: Test Device
+                device_id: 00000000-0000-4000-8000-000000000003
+                device_name: web-client
                 device_type: web
-                os_version: "1.0"
-              email: test.store@example.com
-              password: synthetic-test-password
+                os_version: ""
+              email: store@example.com
+              password: <password>
               tenant_id: 00000000-0000-4000-8000-000000000001
             schema:
               $ref: '#/components/schemas/UserProfile_MerchantLoginRequest'
@@ -7419,11 +7762,15 @@ paths:
                     example: true
                     type: boolean
                 type: object
-          description: Login result with tokens.
+          description: Login result with tokens (or, on newer builds, a 2FA challenge).
         "400":
-          $ref: '#/components/responses/UserProfile_BadRequest'
+          $ref: '#/components/responses/UserProfile_LoginBadRequest'
         "401":
-          $ref: '#/components/responses/UserProfile_Unauthorized'
+          $ref: '#/components/responses/UserProfile_LoginUnauthorized'
+        "403":
+          $ref: '#/components/responses/UserProfile_LoginAccessDenied'
+        "404":
+          $ref: '#/components/responses/UserProfile_LoginUserNotFound'
         "415":
           $ref: '#/components/responses/UserProfile_UnsupportedMediaType'
         "429":
@@ -7456,7 +7803,7 @@ paths:
               last_name: Store
               latitude: 12.9716
               longitude: 77.5946
-              password: synthetic-test-password
+              password: <password>
               phone: "5550100200"
               postal_code: "560001"
               store_name: Test Store
@@ -7498,6 +7845,62 @@ paths:
         - users-store-setup
       x-security-note: Creates a store account. Use only synthetic data in tests and clean up test stores.
       x-todo: Confirm that the response includes the store id that POST /api/v1/profile/outlets requires.
+  /api/v1/users/tenant/login:
+    post:
+      description: 'Logs a tenant admin in with email and password and returns tokens. Public, no token is needed. Rate-limited. tenant_id is the tenant''s UUID; POST /api/v1/auth/tenant-by-domain returns it for the console hostname. The server sets the role to admin (1) and derives the sign-in (Cognito) username itself; the client never computes or sends one. Send data.id_token as `Authorization: Bearer <id_token>`; it is valid for 60 minutes (data.expires_in 3600). This login has no 2FA step.'
+      operationId: users_tenantLogin
+      parameters:
+        - $ref: '#/components/parameters/UserProfile_AcceptLanguage'
+      requestBody:
+        content:
+          application/json:
+            example:
+              device_info:
+                app_version: 1.0.0
+                device_id: 00000000-0000-4000-8000-000000000003
+                device_name: web-client
+                device_type: web
+                os_version: ""
+              email: admin@example.com
+              password: <password>
+              tenant_id: 00000000-0000-4000-8000-000000000001
+            schema:
+              $ref: '#/components/schemas/UserProfile_TenantLoginRequest'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/UserProfile_AuthResponseWithStatus'
+                  meta:
+                    $ref: '#/components/schemas/UserProfile_SuccessMeta'
+                  success:
+                    example: true
+                    type: boolean
+                type: object
+          description: Login result with tokens.
+        "400":
+          $ref: '#/components/responses/UserProfile_LoginBadRequest'
+        "401":
+          $ref: '#/components/responses/UserProfile_LoginUnauthorized'
+        "403":
+          $ref: '#/components/responses/UserProfile_LoginAccessDenied'
+        "404":
+          $ref: '#/components/responses/UserProfile_LoginUserNotFound'
+        "415":
+          $ref: '#/components/responses/UserProfile_UnsupportedMediaType'
+        "429":
+          $ref: '#/components/responses/UserProfile_TooManyRequests'
+        "500":
+          $ref: '#/components/responses/UserProfile_InternalError'
+      security: []
+      summary: Tenant admin (console) login with email and password
+      tags:
+        - users-admin-login
+      x-security-note: Credential endpoint. Rate-limited. Use only synthetic test accounts; never store the returned token in a spec.
   /api/v1/users/user/{identifier_type}/change:
     post:
       description: Sends an OTP to the new email or phone so the caller can change it. Then call the verify operation with the returned session. This operation sends a message to the customer's new contact, so it is rate-limited (OTP initiate limit).
@@ -7580,7 +7983,7 @@ paths:
             example:
               cognito_username: test-user-name
               identifier: new.customer@example.com
-              otp_code: "123456"
+              otp_code: <otp>
               otp_type: email_change
               role_id: 4
               session: test-session-token
@@ -7622,6 +8025,8 @@ paths:
         - users-contact-change
       x-todo: The app's confirmPasswordChange posts new_password and confirm_password to this operation. VerifyOtpRequest has no such fields. Password change uses POST /otp/verify/password_change. Confirm with the app team. The customer app also sends otp_type phone_change for phone changes; the accepted otp_type values are not enumerated in the code reviewed.
 tags:
+  - description: Resolve a site hostname to its tenant UUID before sign-in.
+    name: Auth - auth-tenant-lookup
   - description: Account lookup before sign-in.
     name: Auth - auth-check-user
   - description: Password sign-in and token refresh.
@@ -7634,10 +8039,12 @@ tags:
     name: UserProfile - users-customer-addresses
   - description: Change and verify the customer email or phone with an OTP.
     name: UserProfile - users-contact-change
-  - description: OTP initiate and verify (signup, login, password change).
+  - description: OTP initiate and verify (signup, login, password change). OTP login works for customers, merchants and admins.
     name: UserProfile - users-otp
   - description: Customer login, logout and password reset.
     name: UserProfile - users-customer-login
+  - description: Tenant admin (console) password login.
+    name: UserProfile - users-admin-login
   - description: Store login, store registration and store info, used for admin test-data setup.
     name: UserProfile - users-store-setup
   - description: Outlet read with its opening hours (delivery and pickup schedules).

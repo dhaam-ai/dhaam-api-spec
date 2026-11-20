@@ -69,7 +69,7 @@ func newConsolidated() *OpenAPISpec {
 				"type":         "http",
 				"scheme":       "bearer",
 				"bearerFormat": "JWT",
-				"description":  "JWT access token from the dh-auth login flow. Send as: Authorization: Bearer <token>",
+				"description":  "The id_token (data.id_token) from a login or OTP verify response, valid for 60 minutes. Send as: Authorization: Bearer <id_token>",
 			},
 		},
 	}
