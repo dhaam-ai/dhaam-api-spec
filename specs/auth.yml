@@ -2,11 +2,13 @@ openapi: 3.0.1
 info:
   title: "DHAAM Auth Service API"
   version: "1.0.0"
-  description: "Public auth endpoints used by the customer app and for merchant/admin sign-in. Every path is the full public path. All operations here are public (security is empty). Tokens from login, refresh and social callback are sent as Authorization Bearer to protected routes in other services. The customer app calls check-user before it starts OTP or password sign-in, and calls refresh when an access token expires. Rate limits: the social callback is limited per client IP (20 requests per 15 minutes, then blocked for one hour) and per tenant (100 requests per 15 minutes). Errors use the standard envelope with success false, error.type and error.message. Rate-limit responses (429) use their own shape."
+  description: "Public auth endpoints used by the customer app and for merchant/admin sign-in. Every path is the full public path. All operations here are public (security is empty). Tokens from login, refresh and social callback are sent as Authorization Bearer to protected routes in other services. The customer app calls check-user before it starts OTP or password sign-in, and calls refresh when an access token expires. Rate limits: the social callback is limited per client IP (20 requests per 15 minutes, then blocked for one hour) and per tenant (100 requests per 15 minutes). Tenant-by-domain is rate-limited too. Errors use the standard envelope with success false, error.type and error.message. Rate-limit responses (429) use their own shape."
   x-source-commit: "e7b5f58 (dh-auth development)"
 servers:
   - url: "{{baseUrl}}"
 tags:
+  - name: auth-tenant-lookup
+    description: "Resolve a site hostname to its tenant UUID before sign-in."
   - name: auth-check-user
     description: "Account lookup before sign-in."
   - name: auth-login
@@ -14,13 +16,81 @@ tags:
   - name: auth-social-login
     description: "Google, Facebook and Apple sign-in callback."
 paths:
+  /api/v1/auth/tenant-by-domain:
+    post:
+      tags:
+        - auth-tenant-lookup
+      operationId: auth_tenantByDomain
+      summary: "Get the tenant UUID for a hostname"
+      description: "Public, no token is needed. Rate-limited. Resolves a bare hostname (for example the console hostname) to the tenant UUID that the logins, OTP calls and check-user take as tenant_id. Send the hostname only: no scheme, port or path. The server trims and lower-cases it. The answer is always 200: data.found is false and tenant_id is absent when the hostname does not resolve. Sign-in order for the console: tenant-by-domain, then check-user, then the login for the account's role. Source: dh-auth live (b55de24d)."
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TenantByDomainRequest"
+            example:
+              domain: "console.example.com"
+      responses:
+        "200":
+          description: "Lookup result. data.found tells whether the hostname resolved."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantByDomainResponse"
+              examples:
+                found:
+                  summary: "Hostname resolved"
+                  value:
+                    success: true
+                    data:
+                      found: true
+                      tenant_id: "00000000-0000-4000-8000-000000000001"
+                      message: "tenant resolved"
+                    meta:
+                      timestamp: "2026-01-01T00:00:00Z"
+                      request_id: "00000000-0000-4000-8000-000000000002"
+                notFound:
+                  summary: "Hostname did not resolve"
+                  value:
+                    success: true
+                    data:
+                      found: false
+                      message: "no tenant resolved for this domain"
+                    meta:
+                      timestamp: "2026-01-01T00:00:00Z"
+                      request_id: "00000000-0000-4000-8000-000000000002"
+        "400":
+          description: "Body not valid JSON, or domain missing, longer than 253 characters, or not a bare hostname (INVALID_INPUT)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: "Rate limit exceeded. Retry-After header gives the wait in seconds. Body uses the rate-limit shape, not the standard envelope."
+          headers:
+            Retry-After:
+              description: "Seconds to wait before retrying."
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RateLimitError"
+        "500":
+          description: "Internal error."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /api/v1/auth/check-user:
     post:
       tags:
         - auth-check-user
       operationId: auth_checkUser
       summary: "Check whether an identifier has an account"
-      description: "Public. Called by the customer app before OTP or password sign-in. Returns 200 with the exists flag. Phone identifiers are digits only, 4 to 14 characters."
+      description: "Public. Called by the customer app and the console before OTP or password sign-in. Returns 200 with the exists flag and, when it exists, the account's roles. Pick the login from data.roles[].role_id: 1 admin = POST /api/v1/users/tenant/login, 2 merchant = POST /api/v1/users/store/login, 4 customer = POST /api/v1/users/customer/login (or OTP login with that role_id). Get tenant_id from POST /api/v1/auth/tenant-by-domain. Phone identifiers are digits only, 4 to 14 characters."
       security: []
       parameters:
         - $ref: "#/components/parameters/AcceptLanguage"
@@ -30,13 +100,23 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/CheckUserRequest"
-            example:
-              identifier: "5550100123"
-              identifier_type: "phone"
-              tenant_id: "3f2b8a1e-4c5d-4e6f-8a9b-0c1d2e3f4a5b"
-              role_id: "4"
-              country_code: "+1"
-              domain: "https://shop.example.com"
+            examples:
+              customerPhone:
+                summary: "Customer, by phone"
+                value:
+                  identifier: "5550100123"
+                  identifier_type: "phone"
+                  tenant_id: "00000000-0000-4000-8000-000000000001"
+                  role_id: "4"
+                  country_code: "+1"
+                  domain: "https://shop.example.com"
+              consoleEmail:
+                summary: "Console user, by email"
+                value:
+                  identifier: "admin@example.com"
+                  identifier_type: "email"
+                  tenant_id: "00000000-0000-4000-8000-000000000001"
+                  domain: "console.example.com"
       responses:
         "200":
           description: "Lookup result. exists is false when no account matches."
@@ -419,6 +499,47 @@ components:
           example: true
         data:
           $ref: "#/components/schemas/CheckUserData"
+        meta:
+          type: object
+          additionalProperties: true
+    TenantByDomainRequest:
+      type: object
+      required:
+        - domain
+      properties:
+        domain:
+          type: string
+          maxLength: 253
+          description: "Bare hostname, for example console.example.com. Not a URL and not host:port. Letters, digits, hyphens and dots; an internationalised name goes in its punycode (xn--) form."
+          example: "console.example.com"
+    TenantByDomainData:
+      type: object
+      required:
+        - found
+        - message
+      properties:
+        found:
+          type: boolean
+          description: "True when the hostname resolved to a tenant."
+        tenant_id:
+          type: string
+          format: uuid
+          description: "Tenant UUID to send as tenant_id. Absent when found is false."
+          example: "00000000-0000-4000-8000-000000000001"
+        message:
+          type: string
+          example: "tenant resolved"
+    TenantByDomainResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: "#/components/schemas/TenantByDomainData"
         meta:
           type: object
           additionalProperties: true
