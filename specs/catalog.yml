@@ -276,6 +276,14 @@ components:
         owner_id:
           type: integer
           format: int64
+          minimum: 0
+          description: >-
+            Store id. Data type: integer (int64), sent as a JSON number, for example 1001. A string such as "1001"
+            is not accepted and the request fails with 400. Required, and greater than 0, for the store item list,
+            which is any request without filters.menu_id and without is_want_only_items. Otherwise the response is
+            400 INVALID_INPUT "owner_id (store id) is required for the item list". Merchant and outlet logins may
+            omit it, because the store is taken from the login. Optional on the menu path (filters.menu_id) and the
+            only-items path (is_want_only_items true).
           example: 1001
         filters:
           type: object
@@ -519,7 +527,15 @@ paths:
       operationId: catalog_listItems
       summary: List items with pagination and filters
       description: >-
-        Lists items for the tenant. The customer app calls this with entity_types [1], is_want_only_items true and filters.item_ids to load product cards. Total is in meta.total_count.
+        Lists items for the tenant. The customer app calls this with entity_types [1], is_want_only_items true and
+        filters.item_ids to load product cards. Total is in meta.total_count.
+
+
+        Store item list: a request without filters.menu_id and without is_want_only_items lists one store's items,
+        so owner_id (integer, int64, a JSON number greater than 0) is required. Without it the response is
+        400 INVALID_INPUT "owner_id (store id) is required for the item list". Merchant and outlet logins may omit
+        owner_id, because the store is taken from the login. There is no tenant-wide item list. meta.total_count is
+        exact.
       parameters:
         - $ref: '#/components/parameters/AcceptLanguage'
       requestBody:
@@ -528,14 +544,25 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/ItemListRequest'
-            example:
-              limit: 20
-              current_page: 1
-              previous_page: 0
-              filters:
-                item_ids: ['00000000-0000-4000-8000-000000000201']
-              entity_types: [1]
-              is_want_only_items: true
+            examples:
+              customer_product_cards:
+                summary: Customer app product cards (only-items path, no owner_id needed)
+                value:
+                  limit: 20
+                  current_page: 1
+                  previous_page: 0
+                  filters:
+                    item_ids: ['00000000-0000-4000-8000-000000000201']
+                  entity_types: [1]
+                  is_want_only_items: true
+              store_item_list:
+                summary: One store's item list (owner_id required, integer)
+                value:
+                  limit: 25
+                  current_page: 1
+                  previous_page: 0
+                  owner_id: 1001
+                  entity_types: [1, 2, 3, 4, 5, 6, 7]
       responses:
         '200':
           description: Page of items.
